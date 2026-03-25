@@ -26,4 +26,11 @@ async function protect(req, res, next) {
   }
 };
 
-module.exports = { protect };
+async function isMerchant(req, res, next) {
+  if (req.user.role !== 'merchant') {
+    return res.status(403).json({ message: 'Access denied' });
+  }
+  next();
+};
+
+module.exports = { protect, isMerchant };
