@@ -1,6 +1,6 @@
 const Product=require('../models/Product');
 const Shop=require('../models/Shop');
-const { find, countDocuments } = require('../models/User');
+// const { find, countDocuments } = require('../models/User');
 
 async function createProduct(req,res){
     try {
