@@ -5,5 +5,7 @@ const { protect, isMerchant } = require('../middleware/auth.middleware');
 
 router.post('/shops/:shopId/products', protect, isMerchant, productController.createProduct);
 router.get('/shops/:shopId/products', productController.getProductsByShop);
+router.patch('/shops/:shopId/products/:productId', protect, isMerchant, productController.updateProduct);
+router.delete('/shops/:shopId/products/:productId', protect, isMerchant, productController.deleteProduct);
 
 module.exports = router;

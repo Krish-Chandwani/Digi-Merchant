@@ -14,4 +14,4 @@ const generateWhatsappLink = (phoneNumber, order,productsMap) => {
     return `https://wa.me/${shopPhone}?text=${message}`;
 };
 
-module.exports = generateWhatsAppLink;
+module.exports = generateWhatsappLink;

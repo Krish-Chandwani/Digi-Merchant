@@ -52,4 +52,70 @@ async function getProductsByShop(req,res){
     }
 }
 
-module.exports = { createProduct, getProductsByShop };
+async function updateProduct(req,res){
+    try {
+        const { shopId } = req.params;
+        const shop = await Shop.findById(shopId);
+        if (!shop) {
+            return res.status(404).json({ message: 'Shop not found' });
+        }
+        if (shop.owner.toString() !== req.user.id) {
+            return res.status(403).json({ message: 'Access denied' });
+        }
+
+        const { name, price, stock, category, image } = req.body;
+        const productId = req.params.productId;
+        const product = await Product.findById(productId);
+        if (!product) {
+            return res.status(404).json({ message: 'Product not found' });
+        }
+        if (product.shop.toString() !== req.params.shopId) {
+            return res.status(403).json({ message: 'Access denied' });
+        }
+        
+        if (name) product.name = name;
+        if (price !== undefined) product.price = price;
+        if (stock !== undefined) product.stock = stock;
+        if (category) product.category = category;
+        if (image) product.image = image;
+
+        await product.save();
+        res.status(200).json({
+            message: 'Product updated successfully',
+            product
+        });
+    } catch (error) {
+        res.status(400).json({ message: error.message });
+    }
+}
+
+async function deleteProduct(req,res){
+    try {
+        const { shopId } = req.params;
+        const shop = await Shop.findById(shopId);
+        if (!shop) {
+            return res.status(404).json({ message: 'Shop not found' });
+        }
+
+        if (shop.owner.toString() !== req.user.id) {
+            return res.status(403).json({ message: 'Access denied' });
+        }   
+
+        const productId = req.params.productId;
+        const product = await Product.findById(productId);
+        if (!product) {
+            return res.status(404).json({ message: 'Product not found' });
+        }
+        if (product.shop.toString() !== req.params.shopId) {
+            return res.status(403).json({ message: 'Access denied' });
+        }
+        await product.remove();
+        res.status(200).json({
+            message: 'Product deleted successfully'
+        });
+    } catch (error) {
+        res.status(400).json({ message: error.message });
+    }
+}
+
+module.exports = { createProduct, getProductsByShop, updateProduct, deleteProduct };

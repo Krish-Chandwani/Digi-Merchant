@@ -1,6 +1,7 @@
 const Order = require('../models/Order');
 const Product = require('../models/Product');
 const Shop = require('../models/Shop');
+const generateWhatsappLink = require('../utils/generateWhatsappLink');
 
 async function createOrder(req, res) {
   try {
@@ -22,6 +23,8 @@ async function createOrder(req, res) {
     const orderItems = [];
     const productsMap = {};
 
+    const productsToUpdate = [];
+
     for (let item of items) {
       const product = await Product.findById(item.productId);
 
@@ -29,10 +32,15 @@ async function createOrder(req, res) {
         return res.status(404).json({ message: `Product with ID ${item.productId} not found` });
       }
 
-      // ensure product belongs to the same shop
       if (product.shop.toString() !== shopId) {
         return res.status(400).json({
           message: `Product ${product.name} does not belong to this shop`
+        });
+      }
+
+      if (product.stock < item.quantity) {
+        return res.status(400).json({
+          message: `Not enough stock for ${product.name}`
         });
       }
 
@@ -45,6 +53,14 @@ async function createOrder(req, res) {
       });
 
       productsMap[product._id.toString()] = product.name;
+
+      productsToUpdate.push({ product, quantity: item.quantity });
+    }
+
+    // deduct stock after validation passes
+    for (let item of productsToUpdate) {
+      item.product.stock -= item.quantity;
+      await item.product.save();
     }
 
     const order = await Order.create({
@@ -54,7 +70,7 @@ async function createOrder(req, res) {
       totalAmount
     });
 
-    const whatsappLink = generateWhatsAppLink(shop.whatsappNumber, order, productsMap);
+    const whatsappLink = generateWhatsappLink(shop.whatsappNumber, order, productsMap);
 
     res.status(201).json({
       success: true,
