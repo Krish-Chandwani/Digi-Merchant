@@ -38,19 +38,66 @@ async function createProduct(req,res){
     }
 }
 
-async function getProductsByShop(req,res){
-    try {
-        const shopId = req.params.shopId;
-        const products = await Product.find({ shop: shopId });
-        res.status(200).json({
-            message: 'Products retrieved successfully',
-            products,
-            count: products.length
-        });
-    } catch (error) {
-        res.status(400).json({ message: error.message });
+async function getProductsByShop(req, res) {
+  try {
+    const { shopId } = req.params;
+    const { search, category, inStock, sort, page = 1, limit = 5 } = req.query;
+
+    let filter = { shop: shopId };
+    let sortOption = {};
+
+    // search by product name
+    if (search) {
+      filter.name = { $regex: search, $options: 'i' };
     }
-}
+
+    // filter by category
+    if (category) {
+      filter.category = category;
+    }
+
+    // filter only in-stock products
+    if (inStock === 'true') {
+      filter.stock = { $gt: 0 };
+    }
+
+    // sorting logic
+    if (sort === 'price_asc') {
+      sortOption.price = 1;
+    } else if (sort === 'price_desc') {
+      sortOption.price = -1;
+    } else if (sort === 'newest') {
+      sortOption.createdAt = -1;
+    }
+
+    // pagination values
+    const pageNumber = parseInt(page);
+    const limitNumber = parseInt(limit);
+    const skip = (pageNumber - 1) * limitNumber;
+
+    // total products count
+    const totalProducts = await Product.countDocuments(filter);
+
+    // fetch paginated products
+    const products = await Product.find(filter)
+      .sort(sortOption)
+      .skip(skip)
+      .limit(limitNumber);
+
+    res.status(200).json({
+      success: true,
+      page: pageNumber,
+      limit: limitNumber,
+      totalProducts,
+      totalPages: Math.ceil(totalProducts / limitNumber),
+      count: products.length,
+      products
+    });
+
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
 
 async function updateProduct(req,res){
     try {
