@@ -1,4 +1,5 @@
 const Shop=require('../models/Shop');
+const { countDocuments } = require('../models/User');
 
 async function createShop(req,res){
     try {
@@ -32,6 +33,20 @@ async function getShops(req,res){
         res.status(400).json({ message: error.message });
     }
 }
+
+async function getAllShops(req,res){
+    try {
+        const shops = await Shop.find({ isOpen: true }).populate('owner', 'name email');
+        res.status(200).json({
+            message: 'Shops retrieved successfully',
+            shops,
+            count: shops.length
+        });
+    } catch (error) {
+        res.status(400).json({ message: error.message });
+    }
+}
+
 
 async function getShopById(req,res){
     try {
@@ -96,4 +111,4 @@ async function deleteShop(req,res){
     }
 }
 
-module.exports = { createShop, getShops, getShopById, updateShop, deleteShop };
+module.exports = { createShop, getShops, getAllShops, getShopById, updateShop, deleteShop };
