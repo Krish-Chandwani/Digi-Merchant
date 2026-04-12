@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import api from "../../api/axios";
+import { useCart } from "../../hooks/useCart";
 
 function ShopDetails() {
   const { shopId } = useParams();
+  const { addToCart } = useCart();
 
   const [shop, setShop] = useState(null);
   const [products, setProducts] = useState([]);
@@ -89,7 +91,7 @@ function ShopDetails() {
                     ₹{product.price || 0}
                   </p>
 
-                  <p className="text-gray-500 text-sm mb-2">
+                  <p className={`text-sm font-semibold mb-2 ${(product.stock ?? 0) > 0 ? "text-gray-600" : "text-red-600"}`}>
                     Stock: {product.stock ?? 0}
                   </p>
 
@@ -97,8 +99,31 @@ function ShopDetails() {
                     {product.category || "General"}
                   </p>
 
-                  <button className="w-full bg-green-600 text-white py-2.5 rounded-xl hover:bg-green-700 transition">
-                    Add to Cart
+                  <button 
+                    disabled={(product.stock ?? 0) === 0}
+                    className={`w-full py-2.5 rounded-xl transition font-medium ${
+                      (product.stock ?? 0) === 0
+                        ? "bg-gray-400 text-white cursor-not-allowed"
+                        : "bg-green-600 text-white hover:bg-green-700"
+                    }`}
+                    onClick={() => {
+                      const result = addToCart({
+                        id: product._id,
+                        name: product.name,
+                        price: product.price,
+                        category: product.category,
+                        stock: product.stock,
+                        quantity: 1
+                      });
+                      
+                      if (result.success) {
+                        alert(`✓ ${result.message}`);
+                      } else {
+                        alert(`✗ ${result.message}`);
+                      }
+                    }}
+                  >
+                    {(product.stock ?? 0) === 0 ? "Out of Stock" : "Add to Cart"}
                   </button>
                 </div>
               </div>
