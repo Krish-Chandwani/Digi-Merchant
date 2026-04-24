@@ -4,6 +4,8 @@ const connectDB = require('../Backend/src/config/db');
 
 connectDB();
 
+// console.log("FROM SERVER:", process.env.CLOUD_NAME);
+
 app.listen(5000, () => {
   console.log(`Server is running on port 5000`);
 });

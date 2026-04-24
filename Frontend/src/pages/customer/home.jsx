@@ -7,7 +7,10 @@ function Home() {
   const [filteredShops, setFilteredShops] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
+
+  // 🔥 Fetch shops
   useEffect(() => {
     const fetchShops = async () => {
       try {
@@ -16,8 +19,9 @@ function Home() {
 
         setShops(shopData);
         setFilteredShops(shopData);
-      } catch (error) {
-        console.error("Error fetching shops:", error);
+      } catch (err) {
+        console.error("Error fetching shops:", err);
+        setError("Failed to load shops");
       } finally {
         setLoading(false);
       }
@@ -27,32 +31,51 @@ function Home() {
   }, []);
 
   useEffect(() => {
-    const filtered = shops.filter((shop) =>
-      (shop.name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (shop.category || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (shop.address || "").toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const timer = setTimeout(() => {
+      const filtered = shops.filter((shop) =>
+        (shop.name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (shop.category || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (shop.address || "").toLowerCase().includes(searchTerm.toLowerCase())
+      );
 
-    setFilteredShops(filtered);
+      setFilteredShops(filtered);
+    }, 300);
+
+    return () => clearTimeout(timer);
   }, [searchTerm, shops]);
 
+  // 🔥 Loading UI
   if (loading) {
-    return <div className="p-6 text-lg">Loading shops...</div>;
+    return (
+      <div className="p-6 text-lg text-gray-600">
+        Loading shops...
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-6 text-red-500">
+        {error}
+      </div>
+    );
   }
 
   return (
     <div className="min-h-screen bg-gray-50">
+
       {/* Hero Section */}
       <section className="bg-gradient-to-r from-green-600 to-emerald-500 text-white py-16 px-6">
         <div className="max-w-6xl mx-auto text-center">
           <h1 className="text-4xl md:text-5xl font-bold mb-4">
             Discover Local Shops Near You
           </h1>
+
           <p className="text-lg md:text-xl text-green-100 max-w-2xl mx-auto">
             Support nearby businesses and order products easily from trusted local merchants.
           </p>
 
-          {/* Search Bar */}
+          {/* Search */}
           <div className="mt-8 max-w-2xl mx-auto">
             <input
               type="text"
@@ -69,7 +92,9 @@ function Home() {
       <section className="max-w-6xl mx-auto px-6 py-12">
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h2 className="text-3xl font-bold text-gray-800">Available Shops</h2>
+            <h2 className="text-3xl font-bold text-gray-800">
+              Available Shops
+            </h2>
             <p className="text-gray-600 mt-1">
               Browse and explore local businesses in your area
             </p>
@@ -80,6 +105,7 @@ function Home() {
           </div>
         </div>
 
+        {/* No Shops Found */}
         {filteredShops.length === 0 ? (
           <div className="bg-white rounded-2xl shadow p-10 text-center">
             <h3 className="text-2xl font-semibold text-gray-700 mb-2">
@@ -92,7 +118,12 @@ function Home() {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
             {filteredShops.map((shop) => (
-              <ShopCard key={shop._id} shop={shop} />
+              <div
+                key={shop._id}
+                className="cursor-pointer"
+              >
+                <ShopCard shop={shop} />
+              </div>
             ))}
           </div>
         )}

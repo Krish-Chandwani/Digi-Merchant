@@ -1,25 +1,64 @@
 const Shop=require('../models/Shop');
 const { countDocuments } = require('../models/User');
 
-async function createShop(req,res){
-    try {
-        const { name, address, whatsappNumber, logo } = req.body;
-        const owner = req.user.id;
-        const shop = new Shop({
-            name,
-            address,
-            whatsappNumber,
-            logo,
-            owner
-        });
-        await shop.save();
-        res.status(201).json({
-            message: 'Shop created successfully',
-            shop
-        });
-    } catch (error) {
-        res.status(400).json({ message: error.message });
+const cloudinary = require("../config/cloudinary");
+
+async function uploadToCloudinary(fileBuffer) {
+  return new Promise((resolve, reject) => {
+    cloudinary.uploader.upload_stream(
+      { folder: "digi-merchant" },
+      (error, result) => {
+        if (error) return reject(error);
+        resolve(result.secure_url);
+      }
+    ).end(fileBuffer);
+  });
+}
+
+async function createShop(req, res) {
+  try {
+    console.log("BODY:", req.body);
+    console.log("FILES:", req.files);
+
+    const { name, address, whatsappNumber, category, description } = req.body;
+
+    let logo = "";
+    let banner = "";
+
+    if (req.files?.logo) {
+      logo = await uploadToCloudinary(req.files.logo[0].buffer);
     }
+
+    if (req.files?.banner) {
+      banner = await uploadToCloudinary(req.files.banner[0].buffer);
+    }
+
+    const shop = new Shop({
+      name,
+      address,
+      whatsappNumber,
+      category,
+      description,
+      owner: req.user.id,
+      logo,
+      banner
+    });
+
+    await shop.save();
+
+    res.status(201).json({
+      success: true,
+      message: "Shop created successfully",
+      shop
+    });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
 }
 
 async function getShops(req,res){

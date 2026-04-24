@@ -40,15 +40,32 @@ function ShopDetails() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Shop Header */}
-      <section className="bg-gradient-to-r from-green-600 to-emerald-500 text-white py-12 px-6">
-        <div className="max-w-6xl mx-auto">
-          <h1 className="text-4xl font-bold mb-2">{shop.name || "Shop"}</h1>
-          <p className="text-green-100 text-lg">
-            {shop.address || "No address available"}
-          </p>
-          <span className="inline-block mt-4 px-4 py-2 rounded-full bg-white text-green-700 font-medium">
-            {shop.category || "General"}
-          </span>
+      <section className="bg-white shadow">
+        {/* Banner */}
+        <div className="h-48 bg-gray-200">
+          <img
+            src={
+              shop.banner ||
+              "https://via.placeholder.com/800x200?text=Shop+Banner"
+            }
+            className="w-full h-full object-cover"
+          />
+        </div>
+
+        {/* Shop Info */}
+        <div className="max-w-6xl mx-auto px-6 py-6 flex items-center gap-4">
+          <img
+            src={shop.logo || "https://via.placeholder.com/80?text=Logo"}
+            className="w-20 h-20 rounded-full object-cover border"
+          />
+
+          <div>
+            <h1 className="text-2xl font-bold">{shop.name}</h1>
+            <p className="text-gray-500">{shop.address}</p>
+            <span className="text-sm bg-green-100 text-green-700 px-3 py-1 rounded-full">
+              {shop.category}
+            </span>
+          </div>
         </div>
       </section>
 
@@ -75,10 +92,16 @@ function ShopDetails() {
                 className="bg-white rounded-2xl shadow-md hover:shadow-xl transition duration-300 border border-gray-100 overflow-hidden"
               >
                 {/* Product Top */}
-                <div className="h-28 bg-gradient-to-r from-green-500 to-emerald-400 flex items-center justify-center">
-                  <span className="text-white text-3xl font-bold">
-                    {(product.name || "P").charAt(0).toUpperCase()}
-                  </span>
+                <div className="h-48 bg-gray-200">
+                  <img
+                    src={
+                      product.thumbnail ||
+                      product.images?.[0] ||
+                      "https://via.placeholder.com/300?text=No+Image"
+                    }
+                    alt={product.name}
+                    className="w-full h-full object-cover"
+                  />
                 </div>
 
                 {/* Product Info */}
@@ -91,7 +114,9 @@ function ShopDetails() {
                     ₹{product.price || 0}
                   </p>
 
-                  <p className={`text-sm font-semibold mb-2 ${(product.stock ?? 0) > 0 ? "text-gray-600" : "text-red-600"}`}>
+                  <p
+                    className={`text-sm font-semibold mb-2 ${(product.stock ?? 0) > 0 ? "text-gray-600" : "text-red-600"}`}
+                  >
                     Stock: {product.stock ?? 0}
                   </p>
 
@@ -99,7 +124,7 @@ function ShopDetails() {
                     {product.category || "General"}
                   </p>
 
-                  <button 
+                  <button
                     disabled={(product.stock ?? 0) === 0}
                     className={`w-full py-2.5 rounded-xl transition font-medium ${
                       (product.stock ?? 0) === 0
@@ -113,9 +138,9 @@ function ShopDetails() {
                         price: product.price,
                         category: product.category,
                         stock: product.stock,
-                        quantity: 1
+                        quantity: 1,
                       });
-                      
+
                       if (result.success) {
                         alert(`✓ ${result.message}`);
                       } else {
@@ -123,7 +148,9 @@ function ShopDetails() {
                       }
                     }}
                   >
-                    {(product.stock ?? 0) === 0 ? "Out of Stock" : "Add to Cart"}
+                    {(product.stock ?? 0) === 0
+                      ? "Out of Stock"
+                      : "Add to Cart"}
                   </button>
                 </div>
               </div>

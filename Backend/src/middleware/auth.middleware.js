@@ -5,7 +5,7 @@ exports.protect = async (req, res, next) => {
   try {
     let token;
 
-    // console.log("AUTH HEADER:", req.headers.authorization);
+    console.log("AUTH HEADER:", req.headers.authorization);
 
     if (
       req.headers.authorization &&
@@ -25,7 +25,7 @@ exports.protect = async (req, res, next) => {
     // console.log("DECODED TOKEN:", decoded);
 
     req.user = await User.findById(decoded.id);
-    // console.log("USER FOUND:", req.user);
+    console.log("USER FOUND:", req.user);
 
     next();
   } catch (error) {

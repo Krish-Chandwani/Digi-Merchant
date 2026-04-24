@@ -2,6 +2,20 @@ const Product=require('../models/Product');
 const Shop=require('../models/Shop');
 // const { find, countDocuments } = require('../models/User');
 
+const cloudinary = require("../config/cloudinary");
+
+async function uploadToCloudinary(fileBuffer) {
+  return new Promise((resolve, reject) => {
+    cloudinary.uploader.upload_stream(
+      { folder: "digi-merchant/products" },
+      (error, result) => {
+        if (error) return reject(error);
+        resolve(result.secure_url);
+      }
+    ).end(fileBuffer);
+  });
+}
+
 async function createProduct(req, res) {
   try {
     const { name, price, stock, category } = req.body;
@@ -16,7 +30,14 @@ async function createProduct(req, res) {
       return res.status(403).json({ message: 'Access denied' });
     }
 
-    const imageUrls = req.files ? req.files.map(file => file.path) : [];
+    const imageUrls = [];
+
+    if (req.files && req.files.length > 0) {
+      for (let file of req.files) {
+        const url = await uploadToCloudinary(file.buffer);
+        imageUrls.push(url);
+      }
+    }
 
     const product = new Product({
       name,
@@ -36,7 +57,8 @@ async function createProduct(req, res) {
     });
 
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    console.error(error);
+    res.status(500).json({ message: error.message });
   }
 }
 
