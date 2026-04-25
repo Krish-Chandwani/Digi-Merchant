@@ -125,7 +125,7 @@ async function getProductsByShop(req, res) {
 
 async function updateProduct(req, res) {
   try {
-    const { shopId } = req.params;
+    const { shopId, productId } = req.params;
 
     const shop = await Shop.findById(shopId);
     if (!shop) {
@@ -136,9 +136,7 @@ async function updateProduct(req, res) {
       return res.status(403).json({ message: 'Access denied' });
     }
 
-    const productId = req.params.productId;
     const product = await Product.findById(productId);
-
     if (!product) {
       return res.status(404).json({ message: 'Product not found' });
     }
@@ -147,17 +145,26 @@ async function updateProduct(req, res) {
       return res.status(403).json({ message: 'Access denied' });
     }
 
-    const { name, price, stock, category } = req.body;
+    const { name, price, stock, category, description } = req.body;
 
+    // 🔥 Update text fields
     if (name) product.name = name;
     if (price !== undefined) product.price = price;
     if (stock !== undefined) product.stock = stock;
     if (category) product.category = category;
+    if (description) product.description = description;
 
+    // 🔥 Update images (Cloudinary upload)
     if (req.files && req.files.length > 0) {
-      const imageUrls = req.files.map(file => file.path);
+      const imageUrls = [];
+
+      for (let file of req.files) {
+        const url = await uploadToCloudinary(file.buffer);
+        imageUrls.push(url);
+      }
+
       product.images = imageUrls;
-      product.thumbnail = imageUrls[0];
+      product.thumbnail = imageUrls[0] || product.thumbnail;
     }
 
     await product.save();
@@ -168,7 +175,8 @@ async function updateProduct(req, res) {
     });
 
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    console.error(error);
+    res.status(500).json({ message: error.message });
   }
 }
 

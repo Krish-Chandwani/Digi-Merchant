@@ -63,7 +63,7 @@ async function createShop(req, res) {
 
 async function getShops(req,res){
     try {
-        const shops = await Shop.find().populate('owner', 'name email');
+        const shops = await Shop.find({owner: req.user.id}).populate('owner', 'name email');
         res.status(200).json({
             message: 'Shops retrieved successfully',
             shops
@@ -102,30 +102,47 @@ async function getShopById(req,res){
     }
 }
 
-async function updateShop(req,res){
-    try {
-        const { name, address, whatsappNumber, logo } = req.body;
-        const shop = await Shop.findById(req.params.id);
-        if (!shop) {
-            return res.status(404).json({ message: 'Shop not found' });
-        }
-        if(shop.owner.toString() !== req.user.id){
-            return res.status(403).json({ message: 'Access denied' });
-        }   
-        
-        if(name) shop.name = name;
-        if(address) shop.address = address;
-        if(whatsappNumber) shop.whatsappNumber = whatsappNumber;
-        if(logo) shop.logo = logo;
+async function updateShop(req, res) {
+  try {
+    const { name, address, whatsappNumber, category, description } = req.body;
 
-        await shop.save();
-        res.status(200).json({
-            message: 'Shop updated successfully',
-            shop
-        });
-    } catch (error) {
-        res.status(400).json({ message: error.message });
+    const shop = await Shop.findById(req.params.id);
+
+    if (!shop) {
+      return res.status(404).json({ message: 'Shop not found' });
     }
+
+    if (shop.owner.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+
+    if (req.files?.logo) {
+      const logoUrl = await uploadToCloudinary(req.files.logo[0].buffer);
+      shop.logo = logoUrl;
+    }
+
+    if (req.files?.banner) {
+      const bannerUrl = await uploadToCloudinary(req.files.banner[0].buffer);
+      shop.banner = bannerUrl;
+    }
+
+    if (name) shop.name = name;
+    if (address) shop.address = address;
+    if (whatsappNumber) shop.whatsappNumber = whatsappNumber;
+    if (category) shop.category = category;
+    if (description) shop.description = description;
+
+    await shop.save();
+
+    res.status(200).json({
+      message: 'Shop updated successfully',
+      shop
+    });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: error.message });
+  }
 }
 
 async function deleteShop(req,res){

@@ -24,6 +24,10 @@ export const CartProvider = ({ children }) => {
 
   // Add item to cart with stock validation
   const addToCart = useCallback((product) => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+    return { success: false, requiresAuth: true }; // ✅ MUST RETURN
+    }
     const availableStock = product.stock || 0;
     const quantityToAdd = product.quantity || 1;
 
@@ -35,7 +39,7 @@ export const CartProvider = ({ children }) => {
     if (quantityToAdd > availableStock) {
       return {
         success: false,
-        message: `Only ${availableStock} unit(s) available in stock!`
+        message: `Only ${availableStock} unit(s) available in stock!`,
       };
     }
 
@@ -51,7 +55,7 @@ export const CartProvider = ({ children }) => {
         }
 
         return prevItems.map((item) =>
-          item.id === product.id ? { ...item, quantity: newQuantity } : item
+          item.id === product.id ? { ...item, quantity: newQuantity } : item,
         );
       }
 
@@ -60,55 +64,61 @@ export const CartProvider = ({ children }) => {
 
     return {
       success: true,
-      message: `${product.name} added to cart successfully!`
+      message: `${product.name} added to cart successfully!`,
     };
   }, []);
 
   // Remove item from cart
   const removeFromCart = useCallback((productId) => {
     setCartItems((prevItems) =>
-      prevItems.filter((item) => item.id !== productId)
+      prevItems.filter((item) => item.id !== productId),
     );
   }, []);
 
   // Update cart item quantity with stock validation
-  const updateCart = useCallback((productId, quantity, stock) => {
-    // Check if quantity exceeds available stock
-    if (quantity > stock) {
-      return {
-        success: false,
-        message: `Only ${stock} unit(s) available in stock!`
-      };
-    }
+  const updateCart = useCallback(
+    (productId, quantity, stock) => {
+      // Check if quantity exceeds available stock
+      if (quantity > stock) {
+        return {
+          success: false,
+          message: `Only ${stock} unit(s) available in stock!`,
+        };
+      }
 
-    if (quantity <= 0) {
-      removeFromCart(productId);
-      return { success: true, message: "Item removed from cart" };
-    }
+      if (quantity <= 0) {
+        removeFromCart(productId);
+        return { success: true, message: "Item removed from cart" };
+      }
 
-    setCartItems((prevItems) =>
-      prevItems.map((item) =>
-        item.id === productId ? { ...item, quantity } : item
-      )
-    );
+      setCartItems((prevItems) =>
+        prevItems.map((item) =>
+          item.id === productId ? { ...item, quantity } : item,
+        ),
+      );
 
-    return { success: true, message: "Quantity updated successfully" };
-  }, [removeFromCart]);
+      return { success: true, message: "Quantity updated successfully" };
+    },
+    [removeFromCart],
+  );
 
   // Check if item has sufficient stock
-  const checkStock = useCallback((productId, requiredQuantity) => {
-    const item = cartItems.find((item) => item.id === productId);
-    if (!item) return { success: false, message: "Item not found in cart" };
+  const checkStock = useCallback(
+    (productId, requiredQuantity) => {
+      const item = cartItems.find((item) => item.id === productId);
+      if (!item) return { success: false, message: "Item not found in cart" };
 
-    if (requiredQuantity > item.stock) {
-      return {
-        success: false,
-        message: `Only ${item.stock} unit(s) available. You're requesting ${requiredQuantity}.`
-      };
-    }
+      if (requiredQuantity > item.stock) {
+        return {
+          success: false,
+          message: `Only ${item.stock} unit(s) available. You're requesting ${requiredQuantity}.`,
+        };
+      }
 
-    return { success: true, message: "Stock available" };
-  }, [cartItems]);
+      return { success: true, message: "Stock available" };
+    },
+    [cartItems],
+  );
 
   // Calculate total amount
   const calculateTotalAmount = useCallback(() => {
@@ -135,7 +145,5 @@ export const CartProvider = ({ children }) => {
     cartCount: cartItems.length,
   };
 
-  return (
-    <CartContext.Provider value={value}>{children}</CartContext.Provider>
-  );
+  return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 };

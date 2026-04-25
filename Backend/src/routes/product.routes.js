@@ -8,7 +8,7 @@ const upload = require('../middleware/upload');
 
 router.post('/shops/:shopId/products', protect, isMerchant, upload.array("images", 5),createProductValidation, validateRequest, productController.createProduct);
 router.get('/shops/:shopId/products', productController.getProductsByShop);
-router.patch('/shops/:shopId/products/:productId', protect, isMerchant, productController.updateProduct);
+router.patch('/shops/:shopId/products/:productId', protect, isMerchant, upload.array("images", 5), productController.updateProduct);
 router.delete('/shops/:shopId/products/:productId', protect, isMerchant, productController.deleteProduct);
 
 module.exports = router;

@@ -1,13 +1,38 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useCart } from "../hooks/useCart";
+import { useState } from "react";
+import { jwtDecode } from "jwt-decode";
+
+const token = localStorage.getItem("token");
+
+let user = null;
+
+if (token) {
+  try {
+    user = jwtDecode(token);
+  } catch (err) {
+    console.error("Invalid token", err);
+  }
+}
+
+const isMerchant = user?.role === "merchant";
 
 function Header() {
   const { cartCount } = useCart();
+  const [open, setOpen] = useState(false);
+  const navigate = useNavigate();
+
+  const token = localStorage.getItem("token");
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    navigate("/login");
+  };
 
   return (
     <header className="bg-white shadow sticky top-0 z-50">
       <nav className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-        {/* Logo/Brand */}
+        {/* 🔥 Logo */}
         <Link to="/" className="flex items-center gap-2">
           <div className="w-10 h-10 bg-gradient-to-r from-green-600 to-emerald-500 rounded-lg flex items-center justify-center">
             <span className="text-white font-bold text-lg">DM</span>
@@ -15,34 +40,78 @@ function Header() {
           <h1 className="text-2xl font-bold text-gray-800">Digi-Merchant</h1>
         </Link>
 
-        {/* Cart Icon */}
-        <Link
-          to="/cart"
-          className="relative flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-medium"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            className="w-5 h-5"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"
-            />
-          </svg>
-          Cart
-
-          {/* Badge */}
-          {cartCount > 0 && (
-            <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center">
-              {cartCount}
-            </span>
+        {/* 🔥 Right Side */}
+        <div className="flex items-center gap-4 relative">
+          {/* 🔥 Show Cart ONLY for customers */}
+          {!isMerchant && (
+            <Link
+              to="/cart"
+              className="relative flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-medium"
+            >
+              Cart
+              {cartCount > 0 && (
+                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs w-6 h-6 rounded-full flex items-center justify-center">
+                  {cartCount}
+                </span>
+              )}
+            </Link>
           )}
-        </Link>
+
+          {/* 🔥 Merchant Dashboard */}
+          {isMerchant && (
+            <button
+              onClick={() => navigate("/merchant/dashboard")}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              Dashboard
+            </button>
+          )}
+
+          {/* 🔥 User Icon */}
+          <div className="relative">
+            <button
+              onClick={() => setOpen(!open)}
+              className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center"
+            >
+              {isMerchant ? "🧑‍💼" : "👤"}
+            </button>
+
+            {/* 🔥 Dropdown */}
+            {open && (
+              <div className="absolute right-0 mt-2 w-40 bg-white shadow rounded-lg">
+                {isMerchant && (
+                  <p className="px-4 py-2 text-sm text-blue-600 font-semibold">
+                    Merchant
+                  </p>
+                )}
+
+                {!token ? (
+                  <>
+                    <button
+                      onClick={() => navigate("/login")}
+                      className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+                    >
+                      Login
+                    </button>
+                    <button
+                      onClick={() => navigate("/register")}
+                      className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+                    >
+                      Register
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={handleLogout}
+                    className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-red-600"
+                  >
+                    Logout
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
       </nav>
     </header>
   );
