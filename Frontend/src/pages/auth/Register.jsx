@@ -7,21 +7,36 @@ function Register() {
     name: "",
     email: "",
     password: "",
+    isMerchant: false
   });
 
   const navigate = useNavigate();
 
   const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+    const { name, value, type, checked } = e.target;
+
+    setForm({
+      ...form,
+      [name]: type === "checkbox" ? checked : value
+    });
   };
 
   const handleRegister = async (e) => {
     e.preventDefault();
 
     try {
-      await api.post("/auth/register", form);
+      const payload = {
+        name: form.name,
+        email: form.email,
+        password: form.password,
+        role: form.isMerchant ? "merchant" : "customer" // 🔥 IMPORTANT
+      };
+
+      await api.post("/auth/register", payload);
+
       alert("Registration successful");
       navigate("/login");
+
     } catch (error) {
       alert(error.response?.data?.message || "Registration failed");
     }
@@ -54,41 +69,26 @@ function Register() {
           name="password"
           type="password"
           placeholder="Password"
-          className="w-full mb-6 p-3 border rounded-lg"
+          className="w-full mb-4 p-3 border rounded-lg"
           onChange={handleChange}
         />
+
+        {/* 🔥 Merchant Checkbox */}
+        <div className="mb-4 flex items-center gap-2">
+          <input
+            type="checkbox"
+            name="isMerchant"
+            checked={form.isMerchant}
+            onChange={handleChange}
+          />
+          <label className="text-sm text-gray-700">
+            Register as Merchant
+          </label>
+        </div>
 
         <button className="w-full bg-green-600 text-white py-3 rounded-lg hover:bg-green-700">
           Register
         </button>
-
-        <div className="mb-4">
-          <p className="mb-2 text-sm font-medium text-gray-700">Register as:</p>
-
-          <div className="flex gap-4">
-            <label className="flex items-center gap-2">
-              <input
-                type="radio"
-                name="role"
-                value="customer"
-                checked={form.role === "customer"}
-                onChange={(e) => setForm({ ...form, role: e.target.value })}
-              />
-              Customer
-            </label>
-
-            <label className="flex items-center gap-2">
-              <input
-                type="radio"
-                name="role"
-                value="merchant"
-                checked={form.role === "merchant"}
-                onChange={(e) => setForm({ ...form, role: e.target.value })}
-              />
-              Merchant
-            </label>
-          </div>
-        </div>
 
         <p className="text-center text-sm text-gray-600 mt-4">
           Already a user?{" "}

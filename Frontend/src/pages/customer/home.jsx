@@ -35,7 +35,8 @@ function Home() {
       const filtered = shops.filter((shop) =>
         (shop.name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
         (shop.category || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (shop.address || "").toLowerCase().includes(searchTerm.toLowerCase())
+        (shop.address || "").toLowerCase().includes(searchTerm.toLowerCase())||
+        (shop.description || "").toLowerCase().includes(searchTerm.toLowerCase())
       );
 
       setFilteredShops(filtered);

@@ -1,28 +1,43 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useCart } from "../hooks/useCart";
-import { useState } from "react";
+import { useState,useEffect,useRef } from "react";
 import { jwtDecode } from "jwt-decode";
 
-const token = localStorage.getItem("token");
-
-let user = null;
-
-if (token) {
-  try {
-    user = jwtDecode(token);
-  } catch (err) {
-    console.error("Invalid token", err);
-  }
-}
-
-const isMerchant = user?.role === "merchant";
-
 function Header() {
+  
   const { cartCount } = useCart();
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
 
+  const dropDownRef = useRef();
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropDownRef.current && !dropDownRef.current.contains(event.target)) {
+        setOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
   const token = localStorage.getItem("token");
+
+  let user = null;
+
+  if (token) {
+    try {
+      user = jwtDecode(token);
+      console.log("Decoded user:", user);
+    } catch (err) {
+      console.error("Invalid token", err);
+    }
+  }
+
+  const isMerchant = user?.role === "merchant";
 
   const handleLogout = () => {
     localStorage.removeItem("token");
@@ -60,7 +75,7 @@ function Header() {
           {/* 🔥 Merchant Dashboard */}
           {isMerchant && (
             <button
-              onClick={() => navigate("/merchant/dashboard")}
+              onClick={() => navigate("/merchant/manage-shops")}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
             >
               Dashboard
@@ -68,7 +83,7 @@ function Header() {
           )}
 
           {/* 🔥 User Icon */}
-          <div className="relative">
+          <div className="relative" ref={dropDownRef}>
             <button
               onClick={() => setOpen(!open)}
               className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center"
@@ -88,7 +103,10 @@ function Header() {
                 {!token ? (
                   <>
                     <button
-                      onClick={() => navigate("/login")}
+                      onClick={() => {
+                        setOpen(false);
+                        navigate("/login");
+                      }}
                       className="block w-full text-left px-4 py-2 hover:bg-gray-100"
                     >
                       Login

@@ -1,19 +1,28 @@
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, useLocation } from "react-router-dom";
+
 import Home from "./pages/customer/home";
 import ShopDetails from "./pages/customer/ShopDetails";
 import Cart from "./pages/customer/Cart";
 import Header from "./components/Header";
 
-import Login from "./pages/auth/login";
-import Register from "./pages/auth/register";
-import PrivateRoute from "./components/PrivateRoute";
-
+import Login from "./pages/auth/Login";
+import Register from "./pages/auth/Register";
 import Dashboard from "./pages/merchant/Dashboard";
+import CreateShop from "./pages/merchant/createShop";
+import ManageShops from "./pages/merchant/manageShop";
+import EditShop from "./pages/merchant/editShop";
 
-const App = () => {
+function App() {
+  const location = useLocation();
+
+  // 🔥 Hide header on auth pages
+  const hideHeader =
+    location.pathname === "/login" ||
+    location.pathname === "/register";
+
   return (
     <>
-      <Header />
+      {!hideHeader && <Header />}
 
       <Routes>
         <Route path="/" element={<Home />} />
@@ -22,11 +31,14 @@ const App = () => {
 
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
-        <Route path="/merchant/dashboard" element={<Dashboard />} />
-      </Routes>
 
+        <Route path="/merchant/dashboard" element={<Dashboard />} />
+        <Route path="/merchant/create-shop" element={<CreateShop />} />
+        <Route path="/merchant/manage-shops" element={<ManageShops />} />
+        <Route path="/merchant/shop/:shopId/edit" element={<EditShop />} />
+      </Routes>
     </>
   );
-};
+}
 
 export default App;
