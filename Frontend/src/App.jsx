@@ -3,6 +3,7 @@ import { Routes, Route, useLocation } from "react-router-dom";
 import Home from "./pages/customer/home";
 import ShopDetails from "./pages/customer/ShopDetails";
 import Cart from "./pages/customer/Cart";
+import Payment from "./pages/customer/Payment";
 import MyOrders from "./pages/customer/MyOrders";
 import Header from "./components/Header";
 
@@ -32,6 +33,7 @@ function App() {
         <Route path="/" element={<Home />} />
         <Route path="/shops/:shopId" element={<ShopDetails />} />
         <Route path="/cart" element={<Cart />} />
+        <Route path="/payment/:paymentId" element={<Payment />} />
         <Route path="/my-orders" element={<MyOrders />} />
 
         <Route path="/login" element={<Login />} />

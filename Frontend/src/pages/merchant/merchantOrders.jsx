@@ -199,6 +199,22 @@ function MerchantOrders() {
                   </span>
                 </div>
 
+                {order.paymentStatus && (
+                  <p className="text-sm text-gray-500 mb-3">
+                    Payment:{" "}
+                    <span
+                      className={`font-medium capitalize ${
+                        order.paymentStatus === "paid"
+                          ? "text-green-600"
+                          : "text-yellow-600"
+                      }`}
+                    >
+                      {order.paymentStatus}
+                    </span>
+                    {order.paymentMethod === "online" ? " · Online" : " · COD"}
+                  </p>
+                )}
+
                 <div className="border-t border-gray-100 pt-4 space-y-2">
                   {order.items.map((item, index) => (
                     <div

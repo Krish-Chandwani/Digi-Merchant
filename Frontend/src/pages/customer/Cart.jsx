@@ -28,20 +28,15 @@ function Cart() {
     setMessage(null);
 
     try {
-      const res = await api.post(`/shops/${shopId}/orders`, {
+      const res = await api.post("/payments/create-session", {
+        shopId,
         items: cartItems.map((item) => ({
           productId: item.id,
           quantity: item.quantity,
         })),
       });
 
-      clearCart();
-
-      if (res.data.whatsappLink) {
-        window.open(res.data.whatsappLink, "_blank");
-      }
-
-      setMessage({ type: "success", text: "Order placed successfully!" });
+      navigate(`/payment/${res.data.payment.paymentId}`);
     } catch (error) {
       setMessage({
         type: "error",
@@ -230,7 +225,7 @@ function Cart() {
                     : "bg-green-600 hover:bg-green-700"
                 }`}
               >
-                {loading ? "Placing Order..." : "Proceed to Checkout"}
+                {loading ? "Redirecting..." : "Proceed to Payment"}
               </button>
 
               <button

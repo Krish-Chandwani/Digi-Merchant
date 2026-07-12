@@ -14,7 +14,7 @@ createRoot(document.getElementById('root')).render(
         <NotificationProvider>
           <App />
           <Toaster
-            position="top-right"
+            position="bottom-left"
             toastOptions={{
               duration: 3000,
               style: { borderRadius: "12px", fontSize: "14px" },
