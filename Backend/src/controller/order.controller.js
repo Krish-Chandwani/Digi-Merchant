@@ -1,7 +1,9 @@
 const Order = require('../models/Order');
 const Product = require('../models/Product');
 const Shop = require('../models/Shop');
+const User = require('../models/User');
 const generateWhatsappLink = require('../utils/generateWhatsappLink');
+const sendNotification = require('../utils/sendNotification');
 
 async function createOrder(req, res) {
   try {
@@ -71,6 +73,14 @@ async function createOrder(req, res) {
     });
 
     const whatsappLink = generateWhatsappLink(shop.whatsappNumber, order, productsMap);
+
+    await sendNotification({
+      recipientId: shop.owner,
+      type: 'new_order',
+      message: `${req.user.name} placed a new order of ₹${totalAmount}`,
+      orderId: order._id,
+      shopId: shop._id
+    });
 
     res.status(201).json({
       success: true,
@@ -143,6 +153,14 @@ async function updateOrderStatus(req, res) {
 
         order.status = status;
         await order.save();
+
+        await sendNotification({
+            recipientId: order.customer,
+            type: 'order_status',
+            message: `Your order at ${shop.name} is now ${status}`,
+            orderId: order._id,
+            shopId: shop._id
+        });
 
         res.status(200).json({
             message: 'Order status updated successfully',

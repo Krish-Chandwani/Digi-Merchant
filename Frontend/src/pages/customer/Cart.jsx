@@ -1,12 +1,56 @@
 import { useCart } from "../../hooks/useCart";
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
+import api from "../../api/axios";
 
 function Cart() {
   const { cartItems, removeFromCart, updateCart, calculateTotalAmount, clearCart } = useCart();
   const navigate = useNavigate();
   const [message, setMessage] = useState(null);
+  const [loading, setLoading] = useState(false);
   const totalAmount = calculateTotalAmount();
+  const shopId = cartItems[0]?.shopId;
+  const shopName = cartItems[0]?.shopName;
+
+  const handleCheckout = async () => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      navigate("/login");
+      return;
+    }
+
+    if (!shopId) {
+      setMessage({ type: "error", text: "Invalid cart. Please add items from a shop." });
+      return;
+    }
+
+    setLoading(true);
+    setMessage(null);
+
+    try {
+      const res = await api.post(`/shops/${shopId}/orders`, {
+        items: cartItems.map((item) => ({
+          productId: item.id,
+          quantity: item.quantity,
+        })),
+      });
+
+      clearCart();
+
+      if (res.data.whatsappLink) {
+        window.open(res.data.whatsappLink, "_blank");
+      }
+
+      setMessage({ type: "success", text: "Order placed successfully!" });
+    } catch (error) {
+      setMessage({
+        type: "error",
+        text: error.response?.data?.message || "Checkout failed",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   if (cartItems.length === 0) {
     return (
@@ -147,6 +191,12 @@ function Cart() {
             <div className="bg-white rounded-2xl shadow p-6 sticky top-6">
               <h2 className="text-xl font-bold text-gray-800 mb-6">Order Summary</h2>
 
+              {shopName && (
+                <p className="text-sm text-gray-600 mb-4">
+                  Ordering from: <span className="font-medium">{shopName}</span>
+                </p>
+              )}
+
               <div className="space-y-4 mb-6">
                 <div className="flex justify-between text-gray-700">
                   <span>Subtotal</span>
@@ -171,8 +221,16 @@ function Cart() {
                 </div>
               </div>
 
-              <button className="w-full bg-green-600 text-white py-3 rounded-xl hover:bg-green-700 transition font-semibold mb-3">
-                Proceed to Checkout
+              <button
+                onClick={handleCheckout}
+                disabled={loading}
+                className={`w-full py-3 rounded-xl transition font-semibold mb-3 text-white ${
+                  loading
+                    ? "bg-gray-400 cursor-not-allowed"
+                    : "bg-green-600 hover:bg-green-700"
+                }`}
+              >
+                {loading ? "Placing Order..." : "Proceed to Checkout"}
               </button>
 
               <button

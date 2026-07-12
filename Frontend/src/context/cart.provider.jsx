@@ -26,12 +26,13 @@ export const CartProvider = ({ children }) => {
   const addToCart = useCallback((product) => {
     const token = localStorage.getItem("token");
     if (!token) {
-    return { success: false, requiresAuth: true }; // ✅ MUST RETURN
+      return { success: false, requiresAuth: true };
     }
+
+    const productId = product.id || product._id;
     const availableStock = product.stock || 0;
     const quantityToAdd = product.quantity || 1;
 
-    // Check if product has sufficient stock
     if (availableStock === 0) {
       return { success: false, message: `${product.name} is out of stock!` };
     }
@@ -43,30 +44,42 @@ export const CartProvider = ({ children }) => {
       };
     }
 
-    setCartItems((prevItems) => {
-      const existingItem = prevItems.find((item) => item.id === product.id);
+    if (cartItems.length > 0 && product.shopId && cartItems[0].shopId !== product.shopId) {
+      return {
+        success: false,
+        message: "Your cart has items from another shop. Clear your cart first.",
+      };
+    }
 
-      if (existingItem) {
-        const newQuantity = existingItem.quantity + quantityToAdd;
+    const existingItem = cartItems.find((item) => item.id === productId);
 
-        // Check if adding more would exceed stock
-        if (newQuantity > availableStock) {
-          return prevItems; // Don't add, return unchanged
-        }
+    if (existingItem) {
+      const newQuantity = existingItem.quantity + quantityToAdd;
 
-        return prevItems.map((item) =>
-          item.id === product.id ? { ...item, quantity: newQuantity } : item,
-        );
+      if (newQuantity > availableStock) {
+        return {
+          success: false,
+          message: `Only ${availableStock} unit(s) available in stock!`,
+        };
       }
 
-      return [...prevItems, { ...product, quantity: quantityToAdd }];
-    });
+      setCartItems((prevItems) =>
+        prevItems.map((item) =>
+          item.id === productId ? { ...item, quantity: newQuantity } : item,
+        ),
+      );
+    } else {
+      setCartItems((prevItems) => [
+        ...prevItems,
+        { ...product, id: productId, quantity: quantityToAdd },
+      ]);
+    }
 
     return {
       success: true,
       message: `${product.name} added to cart successfully!`,
     };
-  }, []);
+  }, [cartItems]);
 
   // Remove item from cart
   const removeFromCart = useCallback((productId) => {

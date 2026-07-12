@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../../api/axios";
+import toast from "react-hot-toast";
 
 function CreateShop() {
   const navigate = useNavigate();
@@ -58,10 +59,10 @@ function CreateShop() {
         },
       });
 
-      alert("Shop created successfully");
+      toast.success("Shop created successfully");
       navigate("/merchant/dashboard");
     } catch (error) {
-      alert(error.response?.data?.message || "Error creating shop");
+      toast.error(error.response?.data?.message || "Error creating shop");
     }
   };
 

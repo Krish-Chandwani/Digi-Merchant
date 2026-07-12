@@ -7,6 +7,7 @@ const AuthRoutes = require('./routes/auth.routes');
 const ProductRoutes = require('./routes/product.routes');
 const OrderRoutes = require('./routes/order.routes');
 const AnalyticsRoutes = require('./routes/analytics.routes');
+const NotificationRoutes = require('./routes/notification.routes');
 
 app.use(cors());
 app.use(express.json());
@@ -21,5 +22,6 @@ app.use('/api/auth',AuthRoutes );
 app.use('/api', ProductRoutes);
 app.use('/api/', OrderRoutes);
 app.use('/api', AnalyticsRoutes);
+app.use('/api/notifications', NotificationRoutes);
 
 module.exports = app;

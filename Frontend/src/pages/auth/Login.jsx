@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../../api/axios";
+import toast from "react-hot-toast";
 
 function Login() {
   const [email, setEmail] = useState("");
@@ -18,10 +19,11 @@ function Login() {
 
       // 🔥 Save token
       localStorage.setItem("token", res.data.token);
+      window.dispatchEvent(new Event("auth-change"));
 
       navigate("/");
     } catch (error) {
-      alert(error.response?.data?.message || "Login failed");
+      toast.error(error.response?.data?.message || "Login failed");
     }
   };
 

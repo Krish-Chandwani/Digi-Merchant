@@ -11,7 +11,7 @@ const generateWhatsappLink = (phoneNumber, order,productsMap) => {
     message += `%0A💰 Total: ₹${order.totalAmount}%0A`;
     message += `📌 Status: ${order.status}`;
 
-    return `https://wa.me/${shopPhone}?text=${message}`;
+    return `https://wa.me/91${phoneNumber}?text=${message}`;
 };
 
 module.exports = generateWhatsappLink;

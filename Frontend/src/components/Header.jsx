@@ -2,6 +2,8 @@ import { Link, useNavigate } from "react-router-dom";
 import { useCart } from "../hooks/useCart";
 import { useState,useEffect,useRef } from "react";
 import { jwtDecode } from "jwt-decode";
+import NotificationBell from "./NotificationBell";
+import { disconnectSocket } from "../api/socket";
 
 function Header() {
   
@@ -41,6 +43,8 @@ function Header() {
 
   const handleLogout = () => {
     localStorage.removeItem("token");
+    disconnectSocket();
+    window.dispatchEvent(new Event("auth-change"));
     navigate("/login");
   };
 
@@ -57,6 +61,8 @@ function Header() {
 
         {/* 🔥 Right Side */}
         <div className="flex items-center gap-4 relative">
+          {token && <NotificationBell />}
+
           {/* 🔥 Show Cart ONLY for customers */}
           {!isMerchant && (
             <Link
@@ -93,7 +99,7 @@ function Header() {
 
             {/* 🔥 Dropdown */}
             {open && (
-              <div className="absolute right-0 mt-2 w-40 bg-white shadow rounded-lg">
+              <div className="absolute right-0 mt-2 w-44 bg-white shadow rounded-lg">
                 {isMerchant && (
                   <p className="px-4 py-2 text-sm text-blue-600 font-semibold">
                     Merchant
@@ -119,12 +125,47 @@ function Header() {
                     </button>
                   </>
                 ) : (
-                  <button
-                    onClick={handleLogout}
-                    className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-red-600"
-                  >
-                    Logout
-                  </button>
+                  <>
+                    {isMerchant && (
+                      <>
+                        <button
+                          onClick={() => {
+                            setOpen(false);
+                            navigate("/merchant/orders");
+                          }}
+                          className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+                        >
+                          Orders
+                        </button>
+                        <button
+                          onClick={() => {
+                            setOpen(false);
+                            navigate("/merchant/analytics");
+                          }}
+                          className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+                        >
+                          Analytics
+                        </button>
+                      </>
+                    )}
+                    {!isMerchant && (
+                      <button
+                        onClick={() => {
+                          setOpen(false);
+                          navigate("/my-orders");
+                        }}
+                        className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+                      >
+                        My Orders
+                      </button>
+                    )}
+                    <button
+                      onClick={handleLogout}
+                      className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-red-600"
+                    >
+                      Logout
+                    </button>
+                  </>
                 )}
               </div>
             )}

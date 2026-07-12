@@ -4,25 +4,24 @@ import api from "../../api/axios";
 import { useCart } from "../../hooks/useCart";
 import { useNavigate } from "react-router-dom";
 import { jwtDecode } from "jwt-decode";
-
-const token = localStorage.getItem("token");
-
-let user = null;
-
-if (token) {
-  try {
-    user = jwtDecode(token);
-  } catch (err) {
-    console.error("Invalid token", err);
-  }
-}
-
-const isMerchant = user?.role === "merchant";
+import toast from "react-hot-toast";
 
 function ShopDetails() {
   const { shopId } = useParams();
   const { addToCart } = useCart();
   const navigate = useNavigate();
+
+  const token = localStorage.getItem("token");
+  let isMerchant = false;
+
+  if (token) {
+    try {
+      const user = jwtDecode(token);
+      isMerchant = user?.role === "merchant";
+    } catch (err) {
+      console.error("Invalid token", err);
+    }
+  }
 
   const [shop, setShop] = useState(null);
   const [products, setProducts] = useState([]);
@@ -197,11 +196,13 @@ function ShopDetails() {
                     }`}
                     onClick={() => {
                       if (isMerchant) {
-                        alert("Merchants cannot add products to cart");
+                        toast.error("Merchants cannot add products to cart");
                         return;
                       }
                       const result = addToCart({
-                        _id: product._id,
+                        id: product._id,
+                        shopId,
+                        shopName: shop.name,
                         name: product.name,
                         price: product.price,
                         category: product.category,
@@ -210,17 +211,17 @@ function ShopDetails() {
                       });
 
                         if (result?.requiresAuth) {
-                          alert("Please register or login first");
-                          navigate("/register"); // 🔥 redirect here
+                          toast.error("Please register or login first");
+                          navigate("/register");
                           return;
                         }
 
                         if (!result.success) {
-                          alert(`✗ ${result.message}`);
+                          toast.error(result.message);
                           return;
                         }
 
-                        alert(`✓ ${result.message}`);
+                        toast.success(result.message);
                       
                     }}
                   >

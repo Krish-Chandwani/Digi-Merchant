@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import api from "../../api/axios";
+import toast from "react-hot-toast";
 
 function EditShop() {
   const { shopId } = useParams();
@@ -87,11 +88,11 @@ function EditShop() {
         }
       });
 
-      alert("Shop updated successfully");
-      navigate("/merchant/shops");
+      toast.success("Shop updated successfully");
+      navigate("/merchant/manage-shops");
 
     } catch (error) {
-      alert(error.response?.data?.message || "Update failed");
+      toast.error(error.response?.data?.message || "Update failed");
     } finally {
       setLoading(false);
     }
