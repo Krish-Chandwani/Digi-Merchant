@@ -1,9 +1,26 @@
 import { Navigate } from "react-router-dom";
+import { jwtDecode } from "jwt-decode";
 
-const PrivateRoute = ({ children }) => {
+const PrivateRoute = ({ children, role }) => {
   const token = localStorage.getItem("token");
 
-  return token ? children : <Navigate to="/login" />;
+  if (!token) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (role) {
+    try {
+      const user = jwtDecode(token);
+      if (user.role !== role) {
+        return <Navigate to={user.role === "merchant" ? "/merchant/dashboard" : "/"} replace />;
+      }
+    } catch {
+      localStorage.removeItem("token");
+      return <Navigate to="/login" replace />;
+    }
+  }
+
+  return children;
 };
 
 export default PrivateRoute;

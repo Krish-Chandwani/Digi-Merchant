@@ -7,7 +7,12 @@ async function getShopAnalytics(req, res) {
         const shop = await Shop.findById(shopId);
         if (!shop) {
             return res.status(404).json({ message: 'Shop not found' });
-        }   
+        }
+
+        if (shop.owner.toString() !== req.user._id.toString()) {
+            return res.status(403).json({ message: 'Unauthorized to view analytics for this shop' });
+        }
+
         const orders = await Order.find({ shop: shopId });
         const totalRevenue = orders.reduce((sum, order) => sum + order.totalAmount, 0);
         const totalOrders = orders.length;

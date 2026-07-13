@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../../api/axios";
 import toast from "react-hot-toast";
+import { jwtDecode } from "jwt-decode";
 
 function Login() {
   const [email, setEmail] = useState("");
@@ -17,11 +18,11 @@ function Login() {
         password,
       });
 
-      // 🔥 Save token
       localStorage.setItem("token", res.data.token);
       window.dispatchEvent(new Event("auth-change"));
 
-      navigate("/");
+      const user = jwtDecode(res.data.token);
+      navigate(user.role === "merchant" ? "/merchant/dashboard" : "/");
     } catch (error) {
       toast.error(error.response?.data?.message || "Login failed");
     }
