@@ -154,17 +154,32 @@ async function updateProduct(req, res) {
     if (category) product.category = category;
     if (description) product.description = description;
 
-    // 🔥 Update images (Cloudinary upload)
-    if (req.files && req.files.length > 0) {
-      const imageUrls = [];
+    // Update images: keep selected existing URLs + newly uploaded files (max 5)
+    const hasKeepImages = req.body.keepImages !== undefined;
+    const hasNewFiles = req.files && req.files.length > 0;
 
-      for (let file of req.files) {
-        const url = await uploadToCloudinary(file.buffer);
-        imageUrls.push(url);
+    if (hasKeepImages || hasNewFiles) {
+      let keepImages = product.images || [];
+
+      if (hasKeepImages) {
+        try {
+          keepImages = JSON.parse(req.body.keepImages);
+          if (!Array.isArray(keepImages)) keepImages = [];
+        } catch {
+          keepImages = [];
+        }
       }
 
-      product.images = imageUrls;
-      product.thumbnail = imageUrls[0] || product.thumbnail;
+      const newUrls = [];
+      if (hasNewFiles) {
+        for (let file of req.files) {
+          const url = await uploadToCloudinary(file.buffer);
+          newUrls.push(url);
+        }
+      }
+
+      product.images = [...keepImages, ...newUrls].slice(0, 5);
+      product.thumbnail = product.images[0] || "";
     }
 
     await product.save();
