@@ -131,6 +131,9 @@ async function updateShop(req, res) {
     if (whatsappNumber) shop.whatsappNumber = whatsappNumber;
     if (category) shop.category = category;
     if (description) shop.description = description;
+    if (req.body.isOpen !== undefined) {
+      shop.isOpen = req.body.isOpen === true || req.body.isOpen === 'true';
+    }
 
     await shop.save();
 

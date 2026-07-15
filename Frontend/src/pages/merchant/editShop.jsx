@@ -12,7 +12,8 @@ function EditShop() {
     address: "",
     whatsappNumber: "",
     category: "",
-    description: ""
+    description: "",
+    isOpen: true,
   });
 
   const [logo, setLogo] = useState(null);
@@ -35,7 +36,8 @@ function EditShop() {
           address: shop.address || "",
           whatsappNumber: shop.whatsappNumber || "",
           category: shop.category || "",
-          description: shop.description || ""
+          description: shop.description || "",
+          isOpen: shop.isOpen !== false,
         });
 
         setLogoPreview(shop.logo);
@@ -76,7 +78,11 @@ function EditShop() {
       const formData = new FormData();
 
       Object.keys(form).forEach((key) => {
-        formData.append(key, form[key]);
+        if (key === "isOpen") {
+          formData.append("isOpen", form.isOpen ? "true" : "false");
+        } else {
+          formData.append(key, form[key]);
+        }
       });
 
       if (logo) formData.append("logo", logo);
@@ -166,7 +172,7 @@ function EditShop() {
         </div>
 
         {/* Banner */}
-        <div className="mb-4">
+        <div className="mb-6">
           <p className="text-sm mb-1">Banner</p>
           <label className="block border-2 border-dashed p-4 text-center rounded-lg cursor-pointer">
             {bannerPreview ? (
@@ -180,6 +186,37 @@ function EditShop() {
               onChange={(e) => handleBannerChange(e.target.files[0])}
             />
           </label>
+        </div>
+
+        <div className="mb-6 flex items-center justify-between gap-4 p-4 rounded-xl border border-gray-200 bg-gray-50">
+          <div>
+            <p className="text-sm font-semibold text-gray-800">Shop Status</p>
+            <p className="text-xs text-gray-500 mt-1">
+              Closed shops are hidden from customers.
+            </p>
+            <p
+              className={`text-xs font-semibold mt-2 ${
+                form.isOpen ? "text-green-600" : "text-red-600"
+              }`}
+            >
+              {form.isOpen ? "Currently Open" : "Currently Closed"}
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setForm({ ...form, isOpen: !form.isOpen })}
+            className={`relative w-12 h-7 rounded-full transition shrink-0 ${
+              form.isOpen ? "bg-green-600" : "bg-gray-300"
+            }`}
+            aria-label={form.isOpen ? "Close shop" : "Open shop"}
+          >
+            <span
+              className={`absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow transition ${
+                form.isOpen ? "translate-x-5" : "translate-x-0"
+              }`}
+            />
+          </button>
         </div>
 
         <button

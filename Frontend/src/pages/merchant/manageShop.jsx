@@ -28,8 +28,6 @@ function MyShops() {
 
   return (
     <div className="min-h-screen bg-gray-50 px-6 py-8">
-      
-      {/* Header */}
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold">My Shops</h1>
 
@@ -41,7 +39,6 @@ function MyShops() {
         </button>
       </div>
 
-      {/* Shops List */}
       {shops.length === 0 ? (
         <div className="bg-white p-6 rounded-xl shadow text-center">
           <p className="text-gray-600 mb-4">
@@ -61,40 +58,41 @@ function MyShops() {
               key={shop._id}
               className="bg-white rounded-2xl shadow hover:shadow-lg transition overflow-hidden"
             >
-              
-              {/* Banner */}
               <img
                 src={shop.banner || "https://via.placeholder.com/400x150"}
                 className="w-full h-32 object-cover"
+                alt=""
               />
 
-              {/* Content */}
               <div className="p-4">
-
-                {/* Logo + Info */}
                 <div className="flex items-center gap-3 mb-3">
                   <img
                     src={shop.logo || "https://via.placeholder.com/50"}
                     className="w-12 h-12 rounded-full object-cover border"
+                    alt=""
                   />
-                  <div>
-                    <h2 className="font-semibold text-lg">
-                      {shop.name}
-                    </h2>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h2 className="font-semibold text-lg">{shop.name}</h2>
+                      <span
+                        className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                          shop.isOpen
+                            ? "bg-green-100 text-green-700"
+                            : "bg-red-100 text-red-600"
+                        }`}
+                      >
+                        {shop.isOpen ? "Open" : "Closed"}
+                      </span>
+                    </div>
                     <p className="text-sm text-gray-500">
                       {shop.category || "General"}
                     </p>
                   </div>
                 </div>
 
-                {/* Address */}
-                <p className="text-sm text-gray-600 mb-3">
-                  {shop.address}
-                </p>
+                <p className="text-sm text-gray-600 mb-3">{shop.address}</p>
 
-                {/* Actions */}
                 <div className="flex gap-2">
-
                   <button
                     onClick={() =>
                       navigate(`/merchant/shop/${shop._id}/products`)
@@ -112,9 +110,7 @@ function MyShops() {
                   >
                     Edit
                   </button>
-
                 </div>
-
               </div>
             </div>
           ))}

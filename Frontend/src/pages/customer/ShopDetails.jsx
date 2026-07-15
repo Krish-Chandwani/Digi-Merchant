@@ -33,6 +33,10 @@ function ShopDetails() {
   const [productsLoading, setProductsLoading] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [activeImage, setActiveImage] = useState(0);
+  const [addMoreFor, setAddMoreFor] = useState(null);
+  const [addMoreQty, setAddMoreQty] = useState(1);
+  const [modalAskMore, setModalAskMore] = useState(false);
+  const [modalMoreQty, setModalMoreQty] = useState(1);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -138,17 +142,21 @@ function ShopDetails() {
   const openProductModal = (product) => {
     setSelectedProduct(product);
     setActiveImage(0);
+    setModalAskMore(false);
+    setModalMoreQty(1);
   };
 
   const closeProductModal = () => {
     setSelectedProduct(null);
     setActiveImage(0);
+    setModalAskMore(false);
+    setModalMoreQty(1);
   };
 
-  const handleAddToCart = (product) => {
+  const handleAddToCart = (product, qty = 1) => {
     if (isMerchant) {
       toast.error("Merchants cannot add products to cart");
-      return;
+      return false;
     }
 
     const result = addToCart({
@@ -159,21 +167,22 @@ function ShopDetails() {
       price: product.price,
       category: product.category,
       stock: product.stock,
-      quantity: 1,
+      quantity: qty,
     });
 
     if (result?.requiresAuth) {
       toast.error("Please register or login first");
       navigate("/register");
-      return;
+      return false;
     }
 
     if (!result.success) {
       toast.error(result.message);
-      return;
+      return false;
     }
 
     toast.success(result.message);
+    return true;
   };
 
   const clearFilters = () => {
@@ -183,6 +192,18 @@ function ShopDetails() {
     setSort("newest");
     setInStock(false);
     setPage(1);
+    setAddMoreFor(null);
+    setAddMoreQty(1);
+  };
+
+  const startAddMore = (productId) => {
+    setAddMoreFor(productId);
+    setAddMoreQty(1);
+  };
+
+  const cancelAddMore = () => {
+    setAddMoreFor(null);
+    setAddMoreQty(1);
   };
 
   if (loading) {
@@ -425,19 +446,82 @@ function ShopDetails() {
                         {product.category || "General"}
                       </p>
 
-                      <button
-                        disabled={(product.stock ?? 0) === 0}
-                        className={`w-full py-2.5 rounded-xl transition font-medium ${
-                          (product.stock ?? 0) === 0
-                            ? "bg-gray-400 text-white cursor-not-allowed"
-                            : "bg-green-600 text-white hover:bg-green-700"
-                        }`}
-                        onClick={() => handleAddToCart(product)}
-                      >
-                        {(product.stock ?? 0) === 0
-                          ? "Out of Stock"
-                          : "Add to Cart"}
-                      </button>
+                      {(product.stock ?? 0) === 0 ? (
+                        <button
+                          disabled
+                          className="w-full py-2.5 rounded-xl bg-gray-400 text-white cursor-not-allowed font-medium"
+                        >
+                          Out of Stock
+                        </button>
+                      ) : addMoreFor === product._id ? (
+                        <div className="rounded-xl border border-green-200 bg-green-50 p-3">
+                          <p className="text-sm font-medium text-green-800 mb-3">
+                            Added! Want to add more?
+                          </p>
+                          <div className="flex items-center justify-center gap-3 mb-3">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setAddMoreQty((q) => Math.max(1, q - 1))
+                              }
+                              className="bg-white border hover:bg-gray-100 text-gray-800 w-8 h-8 rounded-lg flex items-center justify-center"
+                            >
+                              −
+                            </button>
+                            <span className="text-base font-semibold text-gray-800 w-6 text-center">
+                              {addMoreQty}
+                            </span>
+                            <button
+                              type="button"
+                              disabled={addMoreQty >= (product.stock ?? 0)}
+                              onClick={() =>
+                                setAddMoreQty((q) =>
+                                  Math.min(product.stock ?? 0, q + 1)
+                                )
+                              }
+                              className={`w-8 h-8 rounded-lg flex items-center justify-center border ${
+                                addMoreQty >= (product.stock ?? 0)
+                                  ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                                  : "bg-white hover:bg-gray-100 text-gray-800"
+                              }`}
+                            >
+                              +
+                            </button>
+                          </div>
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const added = handleAddToCart(
+                                  product,
+                                  addMoreQty
+                                );
+                                if (added) setAddMoreQty(1);
+                              }}
+                              className="flex-1 py-2 rounded-lg bg-green-600 text-white text-sm font-medium hover:bg-green-700"
+                            >
+                              Add more
+                            </button>
+                            <button
+                              type="button"
+                              onClick={cancelAddMore}
+                              className="flex-1 py-2 rounded-lg bg-white border text-gray-700 text-sm font-medium hover:bg-gray-50"
+                            >
+                              Done
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <button
+                          className="w-full py-2.5 rounded-xl bg-green-600 text-white hover:bg-green-700 transition font-medium"
+                          onClick={() => {
+                            const added = handleAddToCart(product, 1);
+                            if (added) startAddMore(product._id);
+                          }}
+                        >
+                          Add to Cart
+                        </button>
+                      )}
                     </div>
                   </div>
                 );
@@ -554,24 +638,92 @@ function ShopDetails() {
                 </span>
 
                 {selectedProduct.description && (
-                  <p className="text-gray-600 text-sm leading-relaxed mb-6">
+                  <p className="text-gray-600 text-sm leading-relaxed mb-4">
                     {selectedProduct.description}
                   </p>
                 )}
 
-                <button
-                  disabled={(selectedProduct.stock ?? 0) === 0}
-                  className={`w-full py-3 rounded-xl transition font-medium ${
-                    (selectedProduct.stock ?? 0) === 0
-                      ? "bg-gray-400 text-white cursor-not-allowed"
-                      : "bg-green-600 text-white hover:bg-green-700"
-                  }`}
-                  onClick={() => handleAddToCart(selectedProduct)}
-                >
-                  {(selectedProduct.stock ?? 0) === 0
-                    ? "Out of Stock"
-                    : "Add to Cart"}
-                </button>
+                {(selectedProduct.stock ?? 0) === 0 ? (
+                  <button
+                    disabled
+                    className="w-full py-3 rounded-xl bg-gray-400 text-white cursor-not-allowed font-medium"
+                  >
+                    Out of Stock
+                  </button>
+                ) : modalAskMore ? (
+                  <div className="rounded-xl border border-green-200 bg-green-50 p-4">
+                    <p className="text-sm font-medium text-green-800 mb-4">
+                      Added to cart! Want to add more?
+                    </p>
+                    <div className="flex items-center justify-center gap-3 mb-4">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setModalMoreQty((q) => Math.max(1, q - 1))
+                        }
+                        className="bg-white border hover:bg-gray-100 text-gray-800 w-8 h-8 rounded-lg flex items-center justify-center"
+                      >
+                        −
+                      </button>
+                      <span className="text-lg font-semibold text-gray-800 w-8 text-center">
+                        {modalMoreQty}
+                      </span>
+                      <button
+                        type="button"
+                        disabled={
+                          modalMoreQty >= (selectedProduct.stock ?? 0)
+                        }
+                        onClick={() =>
+                          setModalMoreQty((q) =>
+                            Math.min(selectedProduct.stock ?? 0, q + 1)
+                          )
+                        }
+                        className={`w-8 h-8 rounded-lg flex items-center justify-center border ${
+                          modalMoreQty >= (selectedProduct.stock ?? 0)
+                            ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                            : "bg-white hover:bg-gray-100 text-gray-800"
+                        }`}
+                      >
+                        +
+                      </button>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const added = handleAddToCart(
+                            selectedProduct,
+                            modalMoreQty
+                          );
+                          if (added) setModalMoreQty(1);
+                        }}
+                        className="flex-1 py-2.5 rounded-xl bg-green-600 text-white font-medium hover:bg-green-700"
+                      >
+                        Add more
+                      </button>
+                      <button
+                        type="button"
+                        onClick={closeProductModal}
+                        className="flex-1 py-2.5 rounded-xl bg-white border text-gray-700 font-medium hover:bg-gray-50"
+                      >
+                        Done
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    className="w-full py-3 rounded-xl bg-green-600 text-white hover:bg-green-700 transition font-medium"
+                    onClick={() => {
+                      const added = handleAddToCart(selectedProduct, 1);
+                      if (added) {
+                        setModalAskMore(true);
+                        setModalMoreQty(1);
+                      }
+                    }}
+                  >
+                    Add to Cart
+                  </button>
+                )}
               </div>
             </div>
           </div>
