@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import api from "../../api/axios";
 import toast from "react-hot-toast";
@@ -11,18 +11,24 @@ const emptyForm = {
   description: "",
 };
 
+const MAX_IMAGES = 5;
+
 function ManageProducts() {
   const { shopId } = useParams();
   const navigate = useNavigate();
+  const fileInputRef = useRef(null);
 
   const [shop, setShop] = useState(null);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState(emptyForm);
-  const [images, setImages] = useState([]);
-  const [imagePreviews, setImagePreviews] = useState([]);
+  const [existingImages, setExistingImages] = useState([]);
+  const [newImages, setNewImages] = useState([]);
+  const [newPreviews, setNewPreviews] = useState([]);
   const [editingId, setEditingId] = useState(null);
+
+  const totalImages = existingImages.length + newImages.length;
 
   const fetchProducts = async () => {
     const productsRes = await api.get(`/shops/${shopId}/products?limit=100`);
@@ -55,20 +61,57 @@ function ManageProducts() {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  const handleImageChange = (files) => {
-    const fileList = Array.from(files).slice(0, 5);
-    setImages(fileList);
-    setImagePreviews(fileList.map((file) => URL.createObjectURL(file)));
+  const handleImageChange = (e) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
+    const remaining = MAX_IMAGES - existingImages.length - newImages.length;
+
+    if (remaining <= 0) {
+      toast.error(`You can upload a maximum of ${MAX_IMAGES} images`);
+      e.target.value = "";
+      return;
+    }
+
+    const selected = files.slice(0, remaining);
+
+    if (files.length > remaining) {
+      toast.error(`Only ${remaining} more image(s) can be added`);
+    }
+
+    setNewImages((prev) => [...prev, ...selected]);
+    setNewPreviews((prev) => [
+      ...prev,
+      ...selected.map((file) => URL.createObjectURL(file)),
+    ]);
+
+    e.target.value = "";
+  };
+
+  const removeExistingImage = (index) => {
+    setExistingImages((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const removeNewImage = (index) => {
+    setNewPreviews((prev) => {
+      URL.revokeObjectURL(prev[index]);
+      return prev.filter((_, i) => i !== index);
+    });
+    setNewImages((prev) => prev.filter((_, i) => i !== index));
   };
 
   const resetForm = () => {
+    newPreviews.forEach((url) => URL.revokeObjectURL(url));
     setForm(emptyForm);
-    setImages([]);
-    setImagePreviews([]);
+    setExistingImages([]);
+    setNewImages([]);
+    setNewPreviews([]);
     setEditingId(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const handleEdit = (product) => {
+    newPreviews.forEach((url) => URL.revokeObjectURL(url));
     setEditingId(product._id);
     setForm({
       name: product.name || "",
@@ -77,8 +120,10 @@ function ManageProducts() {
       category: product.category || "",
       description: product.description || "",
     });
-    setImages([]);
-    setImagePreviews([]);
+    setExistingImages(product.images?.length ? [...product.images] : []);
+    setNewImages([]);
+    setNewPreviews([]);
+    if (fileInputRef.current) fileInputRef.current.value = "";
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -95,9 +140,11 @@ function ManageProducts() {
       formData.append("category", form.category);
       if (form.description) formData.append("description", form.description);
 
-      images.forEach((file) => formData.append("images", file));
+      newImages.forEach((file) => formData.append("images", file));
 
       if (editingId) {
+        formData.append("keepImages", JSON.stringify(existingImages));
+
         await api.patch(`/shops/${shopId}/products/${editingId}`, formData, {
           headers: { "Content-Type": "multipart/form-data" },
         });
@@ -151,7 +198,6 @@ function ManageProducts() {
           </div>
         </div>
 
-        {/* Add / Edit Form */}
         <form
           onSubmit={handleSubmit}
           className="bg-white rounded-2xl shadow p-6 mb-8"
@@ -212,32 +258,81 @@ function ManageProducts() {
           />
 
           <div className="mt-4">
-            <p className="text-sm font-medium text-gray-700 mb-2">
-              Product Images (max 5)
-            </p>
-            <label className="cursor-pointer block border-2 border-dashed border-gray-300 rounded-xl p-4 text-center hover:border-green-500 transition">
-              {imagePreviews.length > 0 ? (
-                <div className="flex flex-wrap gap-2 justify-center">
-                  {imagePreviews.map((src, i) => (
-                    <img
-                      key={i}
-                      src={src}
-                      alt=""
-                      className="w-20 h-20 object-cover rounded-lg"
-                    />
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm font-medium text-gray-700">
+                Product Images ({totalImages}/{MAX_IMAGES})
+              </p>
+              {totalImages < MAX_IMAGES && (
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="text-sm text-green-600 hover:text-green-700 font-medium"
+                >
+                  + Add images
+                </button>
+              )}
+            </div>
+
+            <div className="border-2 border-dashed border-gray-300 rounded-xl p-4">
+              {totalImages === 0 ? (
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-full py-6 text-gray-500 text-sm hover:text-green-600"
+                >
+                  Click to upload images (you can select multiple)
+                </button>
+              ) : (
+                <div className="flex flex-wrap gap-3 justify-center">
+                  {existingImages.map((src, i) => (
+                    <div key={`existing-${i}`} className="relative">
+                      <img
+                        src={src}
+                        alt=""
+                        className="w-20 h-20 object-cover rounded-lg"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeExistingImage(i)}
+                        className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-500 text-white text-xs"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+
+                  {newPreviews.map((src, i) => (
+                    <div key={`new-${i}`} className="relative">
+                      <img
+                        src={src}
+                        alt=""
+                        className="w-20 h-20 object-cover rounded-lg border-2 border-green-400"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeNewImage(i)}
+                        className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-500 text-white text-xs"
+                      >
+                        ✕
+                      </button>
+                    </div>
                   ))}
                 </div>
-              ) : (
-                <p className="text-gray-500 text-sm">Click to upload images</p>
               )}
+
               <input
+                ref={fileInputRef}
                 type="file"
                 accept="image/*"
                 multiple
                 className="hidden"
-                onChange={(e) => handleImageChange(e.target.files)}
+                onChange={handleImageChange}
               />
-            </label>
+            </div>
+
+            <p className="text-xs text-gray-500 mt-2">
+              Tip: In the file picker, hold Ctrl (or Cmd) to select multiple images at once.
+            </p>
           </div>
 
           <div className="flex gap-3 mt-6">
@@ -269,7 +364,6 @@ function ManageProducts() {
           </div>
         </form>
 
-        {/* Products List */}
         <h2 className="text-xl font-bold text-gray-800 mb-4">
           Your Products ({products.length})
         </h2>
@@ -285,7 +379,7 @@ function ManageProducts() {
                 key={product._id}
                 className="bg-white rounded-2xl shadow overflow-hidden"
               >
-                <div className="h-40 bg-gray-200">
+                <div className="relative h-40 bg-gray-200">
                   <img
                     src={
                       product.thumbnail ||
@@ -295,6 +389,11 @@ function ManageProducts() {
                     alt={product.name}
                     className="w-full h-full object-cover"
                   />
+                  {(product.images?.length || 0) > 1 && (
+                    <span className="absolute bottom-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded-lg">
+                      {product.images.length} photos
+                    </span>
+                  )}
                 </div>
 
                 <div className="p-4">

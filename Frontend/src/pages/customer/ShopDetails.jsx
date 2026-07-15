@@ -5,6 +5,9 @@ import { useCart } from "../../hooks/useCart";
 import { useNavigate } from "react-router-dom";
 import { jwtDecode } from "jwt-decode";
 import toast from "react-hot-toast";
+import Select from "../../components/Select";
+
+const LIMIT = 12;
 
 function ShopDetails() {
   const { shopId } = useParams();
@@ -25,16 +28,47 @@ function ShopDetails() {
 
   const [shop, setShop] = useState(null);
   const [products, setProducts] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [productsLoading, setProductsLoading] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [activeImage, setActiveImage] = useState(0);
+
+  const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [category, setCategory] = useState("");
+  const [sort, setSort] = useState("newest");
+  const [inStock, setInStock] = useState(false);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalProducts, setTotalProducts] = useState(0);
 
   useEffect(() => {
-    const fetchShopDetails = async () => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm.trim());
+      setPage(1);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  useEffect(() => {
+    const fetchShop = async () => {
       try {
         const shopRes = await api.get(`/shops/${shopId}`);
-        const productRes = await api.get(`/shops/${shopId}/products`);
-
         setShop(shopRes.data.shop || shopRes.data);
-        setProducts(productRes.data.products || []);
+
+        const categoryRes = await api.get(
+          `/shops/${shopId}/products?limit=100`
+        );
+        const uniqueCategories = [
+          ...new Set(
+            (categoryRes.data.products || [])
+              .map((p) => p.category)
+              .filter(Boolean)
+          ),
+        ];
+        setCategories(uniqueCategories);
       } catch (error) {
         console.error("Error fetching shop details:", error);
       } finally {
@@ -42,8 +76,114 @@ function ShopDetails() {
       }
     };
 
-    fetchShopDetails();
+    fetchShop();
   }, [shopId]);
+
+  useEffect(() => {
+    if (!shopId) return;
+
+    const fetchProducts = async () => {
+      setProductsLoading(true);
+      try {
+        const params = new URLSearchParams({
+          page: String(page),
+          limit: String(LIMIT),
+        });
+
+        if (debouncedSearch) params.set("search", debouncedSearch);
+        if (category) params.set("category", category);
+        if (sort) params.set("sort", sort);
+        if (inStock) params.set("inStock", "true");
+
+        const productRes = await api.get(
+          `/shops/${shopId}/products?${params.toString()}`
+        );
+
+        setProducts(productRes.data.products || []);
+        setTotalPages(productRes.data.totalPages || 1);
+        setTotalProducts(productRes.data.totalProducts || 0);
+      } catch (error) {
+        console.error("Error fetching products:", error);
+        toast.error("Failed to load products");
+      } finally {
+        setProductsLoading(false);
+      }
+    };
+
+    fetchProducts();
+  }, [shopId, debouncedSearch, category, sort, inStock, page]);
+
+  useEffect(() => {
+    if (!selectedProduct) return;
+
+    const handleEscape = (e) => {
+      if (e.key === "Escape") closeProductModal();
+    };
+
+    document.addEventListener("keydown", handleEscape);
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.removeEventListener("keydown", handleEscape);
+      document.body.style.overflow = "";
+    };
+  }, [selectedProduct]);
+
+  const getProductImages = (product) => {
+    if (product?.images?.length > 0) return product.images;
+    if (product?.thumbnail) return [product.thumbnail];
+    return ["https://via.placeholder.com/600?text=No+Image"];
+  };
+
+  const openProductModal = (product) => {
+    setSelectedProduct(product);
+    setActiveImage(0);
+  };
+
+  const closeProductModal = () => {
+    setSelectedProduct(null);
+    setActiveImage(0);
+  };
+
+  const handleAddToCart = (product) => {
+    if (isMerchant) {
+      toast.error("Merchants cannot add products to cart");
+      return;
+    }
+
+    const result = addToCart({
+      id: product._id,
+      shopId,
+      shopName: shop.name,
+      name: product.name,
+      price: product.price,
+      category: product.category,
+      stock: product.stock,
+      quantity: 1,
+    });
+
+    if (result?.requiresAuth) {
+      toast.error("Please register or login first");
+      navigate("/register");
+      return;
+    }
+
+    if (!result.success) {
+      toast.error(result.message);
+      return;
+    }
+
+    toast.success(result.message);
+  };
+
+  const clearFilters = () => {
+    setSearchTerm("");
+    setDebouncedSearch("");
+    setCategory("");
+    setSort("newest");
+    setInStock(false);
+    setPage(1);
+  };
 
   if (loading) {
     return <div className="p-6 text-lg">Loading shop details...</div>;
@@ -53,11 +193,13 @@ function ShopDetails() {
     return <div className="p-6 text-lg">Shop not found</div>;
   }
 
+  const modalImages = selectedProduct ? getProductImages(selectedProduct) : [];
+  const hasActiveFilters =
+    debouncedSearch || category || inStock || sort !== "newest";
+
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Shop Header */}
       <section className="bg-white shadow">
-        {/* Banner */}
         <div className="h-48 bg-gray-200">
           <img
             src={
@@ -65,18 +207,17 @@ function ShopDetails() {
               "https://via.placeholder.com/800x200?text=Shop+Banner"
             }
             className="w-full h-full object-cover"
+            alt=""
           />
         </div>
 
-        {/* Shop Info */}
         <div className="max-w-6xl mx-auto px-6 py-6 grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* 🔥 LEFT SIDE (Shop Info) */}
           <div className="md:col-span-2">
-            {/* Top Info */}
             <div className="flex items-center gap-4">
               <img
                 src={shop.logo || "https://via.placeholder.com/80?text=Logo"}
                 className="w-20 h-20 rounded-full object-cover border"
+                alt=""
               />
 
               <div>
@@ -89,7 +230,6 @@ function ShopDetails() {
               </div>
             </div>
 
-            {/* 🔥 Description */}
             {shop.description && (
               <p className="mt-4 text-gray-600 leading-relaxed">
                 {shop.description}
@@ -97,7 +237,6 @@ function ShopDetails() {
             )}
           </div>
 
-          {/* 🔥 RIGHT SIDE (Owner Card) */}
           <div className="bg-white rounded-2xl shadow p-5 h-fit">
             <h3 className="text-lg font-semibold text-gray-800 mb-3">
               Owner Details
@@ -117,7 +256,6 @@ function ShopDetails() {
               {shop.isOpen ? "Open Now" : "Closed"}
             </p>
 
-            {/* WhatsApp Button */}
             {shop.whatsappNumber && (
               <a
                 href={`https://wa.me/${shop.whatsappNumber}`}
@@ -132,109 +270,313 @@ function ShopDetails() {
         </div>
       </section>
 
-      {/* Products Section */}
       <section className="max-w-6xl mx-auto px-6 py-12">
-        <h2 className="text-3xl font-bold text-gray-800 mb-8">
-          Available Products
-        </h2>
+        <div className="flex flex-wrap items-end justify-between gap-4 mb-6">
+          <div>
+            <h2 className="text-3xl font-bold text-gray-800">
+              Available Products
+            </h2>
+            <p className="text-sm text-gray-500 mt-1">
+              {totalProducts} product{totalProducts !== 1 ? "s" : ""} found
+            </p>
+          </div>
 
-        {products.length === 0 ? (
+          {hasActiveFilters && (
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="text-sm text-green-600 hover:text-green-700 font-medium"
+            >
+              Clear filters
+            </button>
+          )}
+        </div>
+
+        <div className="bg-white rounded-2xl shadow p-4 mb-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="sm:col-span-2 lg:col-span-1">
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+              Search
+            </label>
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search products..."
+              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100"
+            />
+          </div>
+
+          <Select
+            label="Category"
+            value={category}
+            onChange={(e) => {
+              setCategory(e.target.value);
+              setPage(1);
+            }}
+            selectClassName="border-gray-200 bg-white text-gray-800 focus:border-green-500 focus:ring-2 focus:ring-green-100"
+          >
+            <option value="">All Categories</option>
+            {categories.map((cat) => (
+              <option key={cat} value={cat}>
+                {cat}
+              </option>
+            ))}
+          </Select>
+
+          <Select
+            label="Sort by"
+            value={sort}
+            onChange={(e) => {
+              setSort(e.target.value);
+              setPage(1);
+            }}
+            selectClassName="border-gray-200 bg-white text-gray-800 focus:border-green-500 focus:ring-2 focus:ring-green-100"
+          >
+            <option value="newest">Newest</option>
+            <option value="price_asc">Price: Low to High</option>
+            <option value="price_desc">Price: High to Low</option>
+          </Select>
+
+          <Select
+            label="Availability"
+            value={inStock ? "true" : ""}
+            onChange={(e) => {
+              setInStock(e.target.value === "true");
+              setPage(1);
+            }}
+            selectClassName="border-gray-200 bg-white text-gray-800 focus:border-green-500 focus:ring-2 focus:ring-green-100"
+          >
+            <option value="">All Products</option>
+            <option value="true">In Stock Only</option>
+          </Select>
+        </div>
+
+        {productsLoading ? (
+          <div className="text-center py-16 text-gray-500">Loading products...</div>
+        ) : products.length === 0 ? (
           <div className="bg-white rounded-2xl shadow p-10 text-center">
             <h3 className="text-2xl font-semibold text-gray-700 mb-2">
-              No products available
+              No products found
             </h3>
             <p className="text-gray-500">
-              This shop has not added any products yet.
+              {hasActiveFilters
+                ? "Try changing your search or filters."
+                : "This shop has not added any products yet."}
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-            {products.map((product) => (
-              <div
-                key={product._id}
-                className="bg-white rounded-2xl shadow-md hover:shadow-xl transition duration-300 border border-gray-100 overflow-hidden"
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+              {products.map((product) => {
+                const imageCount = product.images?.length || 0;
+
+                return (
+                  <div
+                    key={product._id}
+                    className="bg-white rounded-2xl shadow-md hover:shadow-xl transition duration-300 border border-gray-100 overflow-hidden"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => openProductModal(product)}
+                      className="relative h-48 w-full bg-gray-200 block cursor-pointer"
+                    >
+                      <img
+                        src={
+                          product.thumbnail ||
+                          product.images?.[0] ||
+                          "https://via.placeholder.com/300?text=No+Image"
+                        }
+                        alt={product.name}
+                        className="w-full h-full object-cover"
+                      />
+                      {imageCount > 1 && (
+                        <span className="absolute bottom-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded-lg">
+                          {imageCount} photos
+                        </span>
+                      )}
+                    </button>
+
+                    <div className="p-5">
+                      <button
+                        type="button"
+                        onClick={() => openProductModal(product)}
+                        className="text-left w-full"
+                      >
+                        <h3 className="text-xl font-semibold text-gray-800 mb-2 hover:text-green-700">
+                          {product.name || "Unnamed Product"}
+                        </h3>
+                      </button>
+
+                      <p className="text-2xl font-bold text-green-600 mb-2">
+                        ₹{product.price || 0}
+                      </p>
+
+                      <p
+                        className={`text-sm font-semibold mb-2 ${
+                          (product.stock ?? 0) > 0
+                            ? "text-gray-600"
+                            : "text-red-600"
+                        }`}
+                      >
+                        Stock: {product.stock ?? 0}
+                      </p>
+
+                      <p className="text-sm inline-block px-3 py-1 rounded-full bg-green-100 text-green-700 mb-4">
+                        {product.category || "General"}
+                      </p>
+
+                      <button
+                        disabled={(product.stock ?? 0) === 0}
+                        className={`w-full py-2.5 rounded-xl transition font-medium ${
+                          (product.stock ?? 0) === 0
+                            ? "bg-gray-400 text-white cursor-not-allowed"
+                            : "bg-green-600 text-white hover:bg-green-700"
+                        }`}
+                        onClick={() => handleAddToCart(product)}
+                      >
+                        {(product.stock ?? 0) === 0
+                          ? "Out of Stock"
+                          : "Add to Cart"}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {totalPages > 1 && (
+              <div className="flex items-center justify-center gap-4 mt-10">
+                <button
+                  type="button"
+                  disabled={page <= 1}
+                  onClick={() => setPage((p) => p - 1)}
+                  className={`px-4 py-2 rounded-xl text-sm font-medium ${
+                    page <= 1
+                      ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                      : "bg-white border shadow hover:bg-gray-50"
+                  }`}
+                >
+                  Previous
+                </button>
+                <span className="text-sm text-gray-600">
+                  Page {page} of {totalPages}
+                </span>
+                <button
+                  type="button"
+                  disabled={page >= totalPages}
+                  onClick={() => setPage((p) => p + 1)}
+                  className={`px-4 py-2 rounded-xl text-sm font-medium ${
+                    page >= totalPages
+                      ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                      : "bg-white border shadow hover:bg-gray-50"
+                  }`}
+                >
+                  Next
+                </button>
+              </div>
+            )}
+          </>
+        )}
+      </section>
+
+      {selectedProduct && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={closeProductModal}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between p-4 border-b">
+              <h2 className="text-xl font-bold text-gray-800">
+                {selectedProduct.name}
+              </h2>
+              <button
+                onClick={closeProductModal}
+                className="w-9 h-9 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600"
               >
-                {/* Product Top */}
-                <div className="h-48 bg-gray-200">
+                ✕
+              </button>
+            </div>
+
+            <div className="p-4 md:p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <div className="h-64 md:h-80 bg-gray-100 rounded-xl overflow-hidden">
                   <img
-                    src={
-                      product.thumbnail ||
-                      product.images?.[0] ||
-                      "https://via.placeholder.com/300?text=No+Image"
-                    }
-                    alt={product.name}
+                    src={modalImages[activeImage]}
+                    alt={selectedProduct.name}
                     className="w-full h-full object-cover"
                   />
                 </div>
 
-                {/* Product Info */}
-                <div className="p-5">
-                  <h3 className="text-xl font-semibold text-gray-800 mb-2">
-                    {product.name || "Unnamed Product"}
-                  </h3>
-
-                  <p className="text-2xl font-bold text-green-600 mb-2">
-                    ₹{product.price || 0}
-                  </p>
-
-                  <p
-                    className={`text-sm font-semibold mb-2 ${(product.stock ?? 0) > 0 ? "text-gray-600" : "text-red-600"}`}
-                  >
-                    Stock: {product.stock ?? 0}
-                  </p>
-
-                  <p className="text-sm inline-block px-3 py-1 rounded-full bg-green-100 text-green-700 mb-4">
-                    {product.category || "General"}
-                  </p>
-
-                  <button
-                    disabled={(product.stock ?? 0) === 0}
-                    className={`w-full py-2.5 rounded-xl transition font-medium ${
-                      (product.stock ?? 0) === 0
-                        ? "bg-gray-400 text-white cursor-not-allowed"
-                        : "bg-green-600 text-white hover:bg-green-700"
-                    }`}
-                    onClick={() => {
-                      if (isMerchant) {
-                        toast.error("Merchants cannot add products to cart");
-                        return;
-                      }
-                      const result = addToCart({
-                        id: product._id,
-                        shopId,
-                        shopName: shop.name,
-                        name: product.name,
-                        price: product.price,
-                        category: product.category,
-                        stock: product.stock,
-                        quantity: 1,
-                      });
-
-                        if (result?.requiresAuth) {
-                          toast.error("Please register or login first");
-                          navigate("/register");
-                          return;
-                        }
-
-                        if (!result.success) {
-                          toast.error(result.message);
-                          return;
-                        }
-
-                        toast.success(result.message);
-                      
-                    }}
-                  >
-                    {(product.stock ?? 0) === 0
-                      ? "Out of Stock"
-                      : "Add to Cart"}
-                  </button>
-                </div>
+                {modalImages.length > 1 && (
+                  <div className="flex gap-2 mt-3 overflow-x-auto pb-1">
+                    {modalImages.map((img, index) => (
+                      <button
+                        key={index}
+                        type="button"
+                        onClick={() => setActiveImage(index)}
+                        className={`w-16 h-16 rounded-lg overflow-hidden border-2 shrink-0 ${
+                          activeImage === index
+                            ? "border-green-600"
+                            : "border-transparent"
+                        }`}
+                      >
+                        <img
+                          src={img}
+                          alt=""
+                          className="w-full h-full object-cover"
+                        />
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
-            ))}
+
+              <div>
+                <p className="text-3xl font-bold text-green-600 mb-3">
+                  ₹{selectedProduct.price || 0}
+                </p>
+
+                <p
+                  className={`text-sm font-semibold mb-2 ${
+                    (selectedProduct.stock ?? 0) > 0
+                      ? "text-gray-600"
+                      : "text-red-600"
+                  }`}
+                >
+                  Stock: {selectedProduct.stock ?? 0}
+                </p>
+
+                <span className="text-sm inline-block px-3 py-1 rounded-full bg-green-100 text-green-700 mb-4">
+                  {selectedProduct.category || "General"}
+                </span>
+
+                {selectedProduct.description && (
+                  <p className="text-gray-600 text-sm leading-relaxed mb-6">
+                    {selectedProduct.description}
+                  </p>
+                )}
+
+                <button
+                  disabled={(selectedProduct.stock ?? 0) === 0}
+                  className={`w-full py-3 rounded-xl transition font-medium ${
+                    (selectedProduct.stock ?? 0) === 0
+                      ? "bg-gray-400 text-white cursor-not-allowed"
+                      : "bg-green-600 text-white hover:bg-green-700"
+                  }`}
+                  onClick={() => handleAddToCart(selectedProduct)}
+                >
+                  {(selectedProduct.stock ?? 0) === 0
+                    ? "Out of Stock"
+                    : "Add to Cart"}
+                </button>
+              </div>
+            </div>
           </div>
-        )}
-      </section>
+        </div>
+      )}
     </div>
   );
 }
