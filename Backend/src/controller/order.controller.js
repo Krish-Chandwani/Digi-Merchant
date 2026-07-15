@@ -113,6 +113,16 @@ async function getShopOrders(req, res) {
         if (!shopId) {
             return res.status(400).json({ message: 'Shop ID is required' });
         }
+
+        const shop = await Shop.findById(shopId);
+        if (!shop) {
+            return res.status(404).json({ message: 'Shop not found' });
+        }
+
+        if (shop.owner.toString() !== req.user._id.toString()) {
+            return res.status(403).json({ message: 'Unauthorized to view orders for this shop' });
+        }
+
         const orders = await Order.find({ shop: shopId }).populate('customer', 'name email').populate('items.product', 'name price image').sort({ createdAt: -1 });
 
         res.status(200).json({
