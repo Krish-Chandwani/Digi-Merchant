@@ -188,7 +188,8 @@ async function verifyPayment(req, res) {
       totalAmount,
       paymentMethod: 'online',
       paymentStatus: 'paid',
-      paymentId: razorpay_payment_id
+      paymentId: razorpay_payment_id,
+      statusHistory: [{ status: 'pending', at: new Date() }]
     });
 
     payment.status = 'paid';

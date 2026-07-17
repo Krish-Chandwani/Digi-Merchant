@@ -69,7 +69,8 @@ async function createOrder(req, res) {
       customer: req.user._id,
       shop: shopId,
       items: orderItems,
-      totalAmount
+      totalAmount,
+      statusHistory: [{ status: 'pending', at: new Date() }]
     });
 
     const whatsappLink = generateWhatsappLink(shop.whatsappNumber, order, productsMap);
@@ -162,6 +163,7 @@ async function updateOrderStatus(req, res) {
         }
 
         order.status = status;
+        order.statusHistory.push({ status, at: new Date() });
         await order.save();
 
         await sendNotification({

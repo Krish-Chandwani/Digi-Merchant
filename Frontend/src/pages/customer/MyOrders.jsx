@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../../api/axios";
+import OrderTimeline from "../../components/OrderTimeline";
 
 function MyOrders() {
   const [orders, setOrders] = useState([]);
@@ -110,7 +111,7 @@ function MyOrders() {
                 </div>
 
                 {order.paymentStatus && (
-                  <p className="text-sm text-gray-500 mb-3">
+                  <p className="text-sm text-gray-500 mb-4">
                     Payment:{" "}
                     <span
                       className={`font-medium capitalize ${
@@ -124,6 +125,13 @@ function MyOrders() {
                     {order.paymentMethod === "online" && " (Online)"}
                   </p>
                 )}
+
+                <div className="border-t border-gray-100 pt-4 mb-2">
+                  <OrderTimeline
+                    status={order.status}
+                    statusHistory={order.statusHistory}
+                  />
+                </div>
 
                 <div className="border-t border-gray-100 pt-4 space-y-2">
                   {order.items.map((item, index) => (
