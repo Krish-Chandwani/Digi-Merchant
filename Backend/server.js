@@ -24,4 +24,6 @@ initSocket(server);
 
 server.listen(5000, () => {
   console.log('Server is running on port 5000');
+  const emailReady = !!(process.env.EMAIL_USER || '').trim() && !!(process.env.EMAIL_PASS || '').trim();
+  console.log(emailReady ? 'Email: configured' : 'Email: NOT configured (EMAIL_USER / EMAIL_PASS missing)');
 });

@@ -394,6 +394,19 @@ function ManageProducts() {
                       {product.images.length} photos
                     </span>
                   )}
+                  {(product.stock ?? 0) < 3 && (
+                    <span
+                      className={`absolute top-2 left-2 text-xs px-2 py-1 rounded-lg font-medium ${
+                        (product.stock ?? 0) === 0
+                          ? "bg-red-600 text-white"
+                          : "bg-amber-500 text-white"
+                      }`}
+                    >
+                      {(product.stock ?? 0) === 0
+                        ? "Out of Stock"
+                        : "Low Stock"}
+                    </span>
+                  )}
                 </div>
 
                 <div className="p-4">
@@ -403,7 +416,15 @@ function ManageProducts() {
                   <p className="text-green-600 font-bold mt-1">
                     ₹{product.price}
                   </p>
-                  <p className="text-sm text-gray-600 mt-1">
+                  <p
+                    className={`text-sm font-medium mt-1 ${
+                      (product.stock ?? 0) === 0
+                        ? "text-red-600"
+                        : (product.stock ?? 0) < 3
+                          ? "text-amber-600"
+                          : "text-gray-600"
+                    }`}
+                  >
                     Stock: {product.stock}
                   </p>
                   <span className="text-xs inline-block mt-2 px-2 py-1 bg-green-100 text-green-700 rounded-full">

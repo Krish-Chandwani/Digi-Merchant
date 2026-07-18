@@ -9,6 +9,7 @@ const OrderRoutes = require('./routes/order.routes');
 const AnalyticsRoutes = require('./routes/analytics.routes');
 const NotificationRoutes = require('./routes/notification.routes');
 const PaymentRoutes = require('./routes/payment.routes');
+const StockAlertRoutes = require('./routes/stockAlert.routes');
 
 app.use(cors());
 app.use(express.json());
@@ -25,5 +26,6 @@ app.use('/api/', OrderRoutes);
 app.use('/api', AnalyticsRoutes);
 app.use('/api/notifications', NotificationRoutes);
 app.use('/api/payments', PaymentRoutes);
+app.use('/api/stock-alerts', StockAlertRoutes);
 
 module.exports = app;

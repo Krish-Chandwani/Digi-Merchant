@@ -37,6 +37,8 @@ function ShopDetails() {
   const [addMoreQty, setAddMoreQty] = useState(1);
   const [modalAskMore, setModalAskMore] = useState(false);
   const [modalMoreQty, setModalMoreQty] = useState(1);
+  const [notifyIds, setNotifyIds] = useState([]);
+  const [notifyingId, setNotifyingId] = useState(null);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -73,6 +75,21 @@ function ShopDetails() {
           ),
         ];
         setCategories(uniqueCategories);
+
+        const authToken = localStorage.getItem("token");
+        if (authToken) {
+          try {
+            const decoded = jwtDecode(authToken);
+            if (decoded?.role !== "merchant") {
+              const alertsRes = await api.get(
+                `/stock-alerts/my?shopId=${shopId}`
+              );
+              setNotifyIds(alertsRes.data.productIds || []);
+            }
+          } catch (err) {
+            console.error("Error fetching stock alerts:", err);
+          }
+        }
       } catch (error) {
         console.error("Error fetching shop details:", error);
       } finally {
@@ -183,6 +200,32 @@ function ShopDetails() {
 
     toast.success(result.message);
     return true;
+  };
+
+  const handleNotifyMe = async (product) => {
+    if (!token) {
+      toast.error("Please login to get stock alerts");
+      navigate("/login");
+      return;
+    }
+
+    if (isMerchant) {
+      toast.error("Merchants cannot subscribe to stock alerts");
+      return;
+    }
+
+    setNotifyingId(product._id);
+    try {
+      await api.post(`/stock-alerts/products/${product._id}`);
+      setNotifyIds((prev) =>
+        prev.includes(product._id) ? prev : [...prev, product._id]
+      );
+      toast.success("We'll email you when this is back in stock");
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to subscribe");
+    } finally {
+      setNotifyingId(null);
+    }
   };
 
   const clearFilters = () => {
@@ -447,12 +490,24 @@ function ShopDetails() {
                       </p>
 
                       {(product.stock ?? 0) === 0 ? (
-                        <button
-                          disabled
-                          className="w-full py-2.5 rounded-xl bg-gray-400 text-white cursor-not-allowed font-medium"
-                        >
-                          Out of Stock
-                        </button>
+                        notifyIds.includes(product._id) ? (
+                          <button
+                            disabled
+                            className="w-full py-2.5 rounded-xl bg-blue-100 text-blue-700 font-medium cursor-default"
+                          >
+                            You'll be notified
+                          </button>
+                        ) : (
+                          <button
+                            disabled={notifyingId === product._id}
+                            onClick={() => handleNotifyMe(product)}
+                            className="w-full py-2.5 rounded-xl bg-amber-500 text-white hover:bg-amber-600 transition font-medium disabled:opacity-50"
+                          >
+                            {notifyingId === product._id
+                              ? "Saving..."
+                              : "Notify Me"}
+                          </button>
+                        )
                       ) : addMoreFor === product._id ? (
                         <div className="rounded-xl border border-green-200 bg-green-50 p-3">
                           <p className="text-sm font-medium text-green-800 mb-3">
@@ -644,12 +699,24 @@ function ShopDetails() {
                 )}
 
                 {(selectedProduct.stock ?? 0) === 0 ? (
-                  <button
-                    disabled
-                    className="w-full py-3 rounded-xl bg-gray-400 text-white cursor-not-allowed font-medium"
-                  >
-                    Out of Stock
-                  </button>
+                  notifyIds.includes(selectedProduct._id) ? (
+                    <button
+                      disabled
+                      className="w-full py-3 rounded-xl bg-blue-100 text-blue-700 font-medium cursor-default"
+                    >
+                      You'll be notified when back in stock
+                    </button>
+                  ) : (
+                    <button
+                      disabled={notifyingId === selectedProduct._id}
+                      onClick={() => handleNotifyMe(selectedProduct)}
+                      className="w-full py-3 rounded-xl bg-amber-500 text-white hover:bg-amber-600 transition font-medium disabled:opacity-50"
+                    >
+                      {notifyingId === selectedProduct._id
+                        ? "Saving..."
+                        : "Notify Me When Available"}
+                    </button>
+                  )
                 ) : modalAskMore ? (
                   <div className="rounded-xl border border-green-200 bg-green-50 p-4">
                     <p className="text-sm font-medium text-green-800 mb-4">

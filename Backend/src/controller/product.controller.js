@@ -3,6 +3,10 @@ const Shop=require('../models/Shop');
 // const { find, countDocuments } = require('../models/User');
 
 const cloudinary = require("../config/cloudinary");
+const {
+  notifyCustomersNewProduct,
+  notifyStockAlerts
+} = require('../utils/emailNotifications');
 
 async function uploadToCloudinary(fileBuffer) {
   return new Promise((resolve, reject) => {
@@ -50,6 +54,8 @@ async function createProduct(req, res) {
     });
 
     await product.save();
+
+    notifyCustomersNewProduct(shop, product);
 
     res.status(201).json({
       message: 'Product created successfully',
@@ -146,11 +152,12 @@ async function updateProduct(req, res) {
     }
 
     const { name, price, stock, category, description } = req.body;
+    const previousStock = product.stock;
 
     // 🔥 Update text fields
     if (name) product.name = name;
     if (price !== undefined) product.price = price;
-    if (stock !== undefined) product.stock = stock;
+    if (stock !== undefined) product.stock = Number(stock);
     if (category) product.category = category;
     if (description) product.description = description;
 
@@ -183,6 +190,10 @@ async function updateProduct(req, res) {
     }
 
     await product.save();
+
+    if (previousStock === 0 && product.stock > 0) {
+      notifyStockAlerts(product, shop);
+    }
 
     res.status(200).json({
       message: 'Product updated successfully',

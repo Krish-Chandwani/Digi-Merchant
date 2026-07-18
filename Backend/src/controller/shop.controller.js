@@ -2,6 +2,7 @@ const Shop=require('../models/Shop');
 const { countDocuments } = require('../models/User');
 
 const cloudinary = require("../config/cloudinary");
+const { notifyCustomersNewShop } = require('../utils/emailNotifications');
 
 async function uploadToCloudinary(fileBuffer) {
   return new Promise((resolve, reject) => {
@@ -45,6 +46,8 @@ async function createShop(req, res) {
     });
 
     await shop.save();
+
+    notifyCustomersNewShop(shop);
 
     res.status(201).json({
       success: true,
