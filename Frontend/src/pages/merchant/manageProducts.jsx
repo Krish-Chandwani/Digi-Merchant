@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import api from "../../api/axios";
 import toast from "react-hot-toast";
+import ConfirmModal from "../../components/ConfirmModal";
 
 const emptyForm = {
   name: "",
@@ -27,6 +28,8 @@ function ManageProducts() {
   const [newImages, setNewImages] = useState([]);
   const [newPreviews, setNewPreviews] = useState([]);
   const [editingId, setEditingId] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   const totalImages = existingImages.length + newImages.length;
 
@@ -165,15 +168,20 @@ function ManageProducts() {
     }
   };
 
-  const handleDelete = async (productId) => {
-    if (!window.confirm("Delete this product?")) return;
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
 
+    setDeleting(true);
     try {
-      await api.delete(`/shops/${shopId}/products/${productId}`);
-      setProducts((prev) => prev.filter((p) => p._id !== productId));
-      if (editingId === productId) resetForm();
+      await api.delete(`/shops/${shopId}/products/${deleteTarget._id}`);
+      setProducts((prev) => prev.filter((p) => p._id !== deleteTarget._id));
+      if (editingId === deleteTarget._id) resetForm();
+      toast.success("Product deleted");
+      setDeleteTarget(null);
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to delete product");
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -439,7 +447,7 @@ function ManageProducts() {
                       Edit
                     </button>
                     <button
-                      onClick={() => handleDelete(product._id)}
+                      onClick={() => setDeleteTarget(product)}
                       className="flex-1 bg-red-500 text-white py-2 rounded-lg hover:bg-red-600 text-sm"
                     >
                       Delete
@@ -451,6 +459,24 @@ function ManageProducts() {
           </div>
         )}
       </div>
+
+      <ConfirmModal
+        open={!!deleteTarget}
+        title="Delete product?"
+        message={
+          deleteTarget
+            ? `“${deleteTarget.name}” will be permanently removed from this shop.`
+            : ""
+        }
+        confirmLabel="Delete product"
+        cancelLabel="Cancel"
+        variant="danger"
+        loading={deleting}
+        onCancel={() => {
+          if (!deleting) setDeleteTarget(null);
+        }}
+        onConfirm={handleDelete}
+      />
     </div>
   );
 }
