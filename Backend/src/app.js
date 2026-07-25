@@ -10,6 +10,7 @@ const AnalyticsRoutes = require('./routes/analytics.routes');
 const NotificationRoutes = require('./routes/notification.routes');
 const PaymentRoutes = require('./routes/payment.routes');
 const StockAlertRoutes = require('./routes/stockAlert.routes');
+const FavouriteRoutes = require('./routes/favourite.routes');
 
 app.use(cors());
 app.use(express.json());
@@ -27,5 +28,6 @@ app.use('/api', AnalyticsRoutes);
 app.use('/api/notifications', NotificationRoutes);
 app.use('/api/payments', PaymentRoutes);
 app.use('/api/stock-alerts', StockAlertRoutes);
+app.use('/api/favourites', FavouriteRoutes);
 
 module.exports = app;
