@@ -122,7 +122,7 @@ function MyOrders() {
                     >
                       {order.paymentStatus}
                     </span>
-                    {order.paymentMethod === "online" && " (Online)"}
+                    {order.paymentMethod === "online" ? " · Online" : " · COD"}
                   </p>
                 )}
 
