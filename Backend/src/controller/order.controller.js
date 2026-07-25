@@ -1,30 +1,27 @@
 const Order = require('../models/Order');
 const Product = require('../models/Product');
 const Shop = require('../models/Shop');
-const User = require('../models/User');
 const generateWhatsappLink = require('../utils/generateWhatsappLink');
 const sendNotification = require('../utils/sendNotification');
+const { applyCouponForCheckout } = require('../utils/couponUtils');
 
 async function createOrder(req, res) {
   try {
     const { shopId } = req.params;
-    const { items } = req.body;
+    const { items, couponCode } = req.body;
 
-    // check if shop exists
     const shop = await Shop.findById(shopId);
     if (!shop) {
       return res.status(404).json({ message: 'Shop not found' });
     }
 
-    // validate items
     if (!items || items.length === 0) {
       return res.status(400).json({ message: 'Order items are required' });
     }
 
-    let totalAmount = 0;
+    let subtotal = 0;
     const orderItems = [];
     const productsMap = {};
-
     const productsToUpdate = [];
 
     for (let item of items) {
@@ -46,7 +43,7 @@ async function createOrder(req, res) {
         });
       }
 
-      totalAmount += product.price * item.quantity;
+      subtotal += product.price * item.quantity;
 
       orderItems.push({
         product: product._id,
@@ -55,11 +52,22 @@ async function createOrder(req, res) {
       });
 
       productsMap[product._id.toString()] = product.name;
-
       productsToUpdate.push({ product, quantity: item.quantity });
     }
 
-    // deduct stock after validation passes
+    const couponResult = await applyCouponForCheckout({
+      code: couponCode,
+      customerId: req.user._id,
+      shopId,
+      subtotal
+    });
+
+    if (couponResult.finalAmount < 1) {
+      return res.status(400).json({
+        message: 'Order total after discount must be at least ₹1'
+      });
+    }
+
     for (let item of productsToUpdate) {
       item.product.stock -= item.quantity;
       await item.product.save();
@@ -69,7 +77,10 @@ async function createOrder(req, res) {
       customer: req.user._id,
       shop: shopId,
       items: orderItems,
-      totalAmount,
+      subtotal,
+      discountAmount: couponResult.discountAmount,
+      couponCode: couponResult.couponCode,
+      totalAmount: couponResult.finalAmount,
       statusHistory: [{ status: 'pending', at: new Date() }]
     });
 
@@ -78,7 +89,7 @@ async function createOrder(req, res) {
     await sendNotification({
       recipientId: shop.owner,
       type: 'new_order',
-      message: `${req.user.name} placed a new order of ₹${totalAmount}`,
+      message: `${req.user.name} placed a new order of ₹${couponResult.finalAmount}`,
       orderId: order._id,
       shopId: shop._id
     });
@@ -89,11 +100,13 @@ async function createOrder(req, res) {
       order,
       whatsappLink
     });
-
   } catch (error) {
+    if (error.status) {
+      return res.status(error.status).json({ message: error.message });
+    }
     res.status(500).json({ message: error.message });
   }
-};
+}
 
 async function getMyOrders(req, res) {
     try {
