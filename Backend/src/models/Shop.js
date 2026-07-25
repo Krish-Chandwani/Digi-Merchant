@@ -2,64 +2,73 @@ const mongoose = require('mongoose');
 
 const shopsSchema = new mongoose.Schema({
     name: {
-        type: String,   
+        type: String,
         required: true,
         trim: true
     },
 
-    owner:{
+    owner: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
         required: true
     },
 
-    address:{
+    address: {
         type: String,
         required: true,
         trim: true
     },
 
-    whatsappNumber:{
+    whatsappNumber: {
         type: String,
         required: true,
-        match: [/^[0-9]{10}$/, "Enter valid 10-digit number"]
+        match: [/^[0-9]{10}$/, 'Enter valid 10-digit number']
     },
 
-    isOpen:{
+    isOpen: {
         type: Boolean,
         default: true
     },
 
-    logo:{
+    logo: {
         type: String,
-        default: ""
+        default: ''
     },
 
-    banner:{
+    banner: {
         type: String,
-        default: ""
+        default: ''
     },
 
-    description:{
+    description: {
         type: String,
-        default: "",
+        default: '',
         trim: true
     },
 
-    category:{
+    category: {
         type: String,
-        default: ""
+        default: ''
+    },
+
+    // GeoJSON Point: coordinates are [longitude, latitude]
+    location: {
+        type: {
+            type: String,
+            enum: ['Point']
+        },
+        coordinates: {
+            type: [Number]
+        }
     }
-
 }, { timestamps: true });
-
 
 shopsSchema.index({ name: 1 });
 shopsSchema.index({ category: 1 });
 shopsSchema.index({ isOpen: 1 });
 shopsSchema.index({ createdAt: -1 });
-
-shopsSchema.index({ name: "text", description: "text" });
+shopsSchema.index({ location: '2dsphere' });
+shopsSchema.index({ name: 'text', description: 'text' });
 
 const ShopModel = mongoose.model('Shop', shopsSchema);
 

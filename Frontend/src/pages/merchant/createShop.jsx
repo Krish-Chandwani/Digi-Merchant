@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../../api/axios";
 import toast from "react-hot-toast";
+import LocationPicker from "../../components/LocationPicker";
 
 function CreateShop() {
   const navigate = useNavigate();
@@ -14,6 +15,9 @@ function CreateShop() {
     category: "",
     description: "",
   });
+
+  const [latitude, setLatitude] = useState(null);
+  const [longitude, setLongitude] = useState(null);
 
   const [logo, setLogo] = useState(null);
   const [banner, setBanner] = useState(null);
@@ -49,6 +53,11 @@ function CreateShop() {
       formData.append("whatsappNumber", form.whatsappNumber);
       formData.append("category", form.category);
       formData.append("description", form.description);
+
+      if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
+        formData.append("latitude", String(latitude));
+        formData.append("longitude", String(longitude));
+      }
 
       if (logo) formData.append("logo", logo);
       if (banner) formData.append("banner", banner);
@@ -88,6 +97,20 @@ function CreateShop() {
           className="w-full mb-4 p-3 border rounded-lg"
           onChange={handleChange}
           required
+        />
+
+        <LocationPicker
+          latitude={latitude}
+          longitude={longitude}
+          onChange={(coords) => {
+            if (!coords) {
+              setLatitude(null);
+              setLongitude(null);
+              return;
+            }
+            setLatitude(coords.latitude);
+            setLongitude(coords.longitude);
+          }}
         />
 
         <input

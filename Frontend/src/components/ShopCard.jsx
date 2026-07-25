@@ -8,8 +8,7 @@ const ShopCard = ({ shop }) => {
       onClick={() => navigate(`/shops/${shop._id}`)}
       className="bg-white rounded-2xl shadow-md hover:shadow-xl transition overflow-hidden cursor-pointer"
     >
-      {/* 🔥 Banner */}
-      <div className="h-32 w-full bg-gray-200">
+      <div className="h-32 w-full bg-gray-200 relative">
         <img
           src={
             shop.banner ||
@@ -18,11 +17,17 @@ const ShopCard = ({ shop }) => {
           alt={shop.name}
           className="w-full h-full object-cover"
         />
+        {typeof shop.distanceKm === "number" && (
+          <span className="absolute top-3 right-3 bg-white/95 text-gray-800 text-xs font-semibold px-2.5 py-1 rounded-lg shadow">
+            {shop.distanceKm < 1
+              ? `${Math.round(shop.distanceKm * 1000)} m`
+              : `${shop.distanceKm} km`}{" "}
+            away
+          </span>
+        )}
       </div>
 
-      {/* 🔥 Content */}
       <div className="p-4 relative">
-        {/* 🔥 Logo */}
         <div className="absolute -top-10 left-4">
           <img
             src={
@@ -34,7 +39,6 @@ const ShopCard = ({ shop }) => {
           />
         </div>
 
-        {/* 🔥 Info */}
         <div className="mt-8">
           <h2 className="text-xl font-semibold text-gray-800">
             {shop.name}
