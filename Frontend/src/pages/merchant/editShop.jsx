@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import api from "../../api/axios";
 import toast from "react-hot-toast";
+import LocationPicker from "../../components/LocationPicker";
 
 function EditShop() {
   const { shopId } = useParams();
@@ -16,6 +17,9 @@ function EditShop() {
     isOpen: true,
   });
 
+  const [latitude, setLatitude] = useState(null);
+  const [longitude, setLongitude] = useState(null);
+
   const [logo, setLogo] = useState(null);
   const [banner, setBanner] = useState(null);
 
@@ -24,7 +28,6 @@ function EditShop() {
 
   const [loading, setLoading] = useState(false);
 
-  // 🔥 Fetch existing shop data
   useEffect(() => {
     const fetchShop = async () => {
       try {
@@ -40,9 +43,14 @@ function EditShop() {
           isOpen: shop.isOpen !== false,
         });
 
+        const coords = shop.location?.coordinates;
+        if (Array.isArray(coords) && coords.length === 2) {
+          setLongitude(coords[0]);
+          setLatitude(coords[1]);
+        }
+
         setLogoPreview(shop.logo);
         setBannerPreview(shop.banner);
-
       } catch (err) {
         console.error(err);
       }
@@ -84,6 +92,14 @@ function EditShop() {
           formData.append(key, form[key]);
         }
       });
+
+      if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
+        formData.append("latitude", String(latitude));
+        formData.append("longitude", String(longitude));
+      } else {
+        formData.append("latitude", "");
+        formData.append("longitude", "");
+      }
 
       if (logo) formData.append("logo", logo);
       if (banner) formData.append("banner", banner);
@@ -128,6 +144,20 @@ function EditShop() {
           placeholder="Address"
           className="w-full mb-4 p-3 border rounded-lg"
           onChange={handleChange}
+        />
+
+        <LocationPicker
+          latitude={latitude}
+          longitude={longitude}
+          onChange={(coords) => {
+            if (!coords) {
+              setLatitude(null);
+              setLongitude(null);
+              return;
+            }
+            setLatitude(coords.latitude);
+            setLongitude(coords.longitude);
+          }}
         />
 
         <input
