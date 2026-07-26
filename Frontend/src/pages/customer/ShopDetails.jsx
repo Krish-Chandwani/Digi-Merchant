@@ -6,6 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { jwtDecode } from "jwt-decode";
 import toast from "react-hot-toast";
 import Select from "../../components/Select";
+import FavouriteButton from "../../components/FavouriteButton";
 
 const LIMIT = 12;
 
@@ -264,7 +265,7 @@ function ShopDetails() {
   return (
     <div className="min-h-screen bg-gray-50">
       <section className="bg-white shadow">
-        <div className="h-48 bg-gray-200">
+        <div className="h-48 bg-gray-200 relative">
           <img
             src={
               shop.banner ||
@@ -272,6 +273,12 @@ function ShopDetails() {
             }
             className="w-full h-full object-cover"
             alt=""
+          />
+          <FavouriteButton
+            type="shop"
+            itemId={shop._id}
+            size="lg"
+            className="absolute top-4 right-4 z-10"
           />
         </div>
 
@@ -439,26 +446,33 @@ function ShopDetails() {
                     key={product._id}
                     className="bg-white rounded-2xl shadow-md hover:shadow-xl transition duration-300 border border-gray-100 overflow-hidden"
                   >
-                    <button
-                      type="button"
-                      onClick={() => openProductModal(product)}
-                      className="relative h-48 w-full bg-gray-200 block cursor-pointer"
-                    >
-                      <img
-                        src={
-                          product.thumbnail ||
-                          product.images?.[0] ||
-                          "https://via.placeholder.com/300?text=No+Image"
-                        }
-                        alt={product.name}
-                        className="w-full h-full object-cover"
-                      />
+                    <div className="relative h-48 w-full bg-gray-200">
+                      <button
+                        type="button"
+                        onClick={() => openProductModal(product)}
+                        className="absolute inset-0 block cursor-pointer"
+                      >
+                        <img
+                          src={
+                            product.thumbnail ||
+                            product.images?.[0] ||
+                            "https://via.placeholder.com/300?text=No+Image"
+                          }
+                          alt={product.name}
+                          className="w-full h-full object-cover"
+                        />
+                      </button>
                       {imageCount > 1 && (
-                        <span className="absolute bottom-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded-lg">
+                        <span className="absolute bottom-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded-lg pointer-events-none">
                           {imageCount} photos
                         </span>
                       )}
-                    </button>
+                      <FavouriteButton
+                        type="product"
+                        itemId={product._id}
+                        className="absolute top-3 right-3 z-10"
+                      />
+                    </div>
 
                     <div className="p-5">
                       <button
@@ -631,12 +645,19 @@ function ShopDetails() {
               <h2 className="text-xl font-bold text-gray-800">
                 {selectedProduct.name}
               </h2>
-              <button
-                onClick={closeProductModal}
-                className="w-9 h-9 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600"
-              >
-                ✕
-              </button>
+              <div className="flex items-center gap-2">
+                <FavouriteButton
+                  type="product"
+                  itemId={selectedProduct._id}
+                  size="sm"
+                />
+                <button
+                  onClick={closeProductModal}
+                  className="w-9 h-9 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600"
+                >
+                  ✕
+                </button>
+              </div>
             </div>
 
             <div className="p-4 md:p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
