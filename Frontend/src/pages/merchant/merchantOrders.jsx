@@ -31,6 +31,7 @@ function MerchantOrders() {
   const [selectedShop, setSelectedShop] = useState("all");
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState(null);
+  const [updatingPaymentId, setUpdatingPaymentId] = useState(null);
   const navigate = useNavigate();
 
   const fetchOrders = async () => {
@@ -97,6 +98,38 @@ function MerchantOrders() {
       toast.error(error.response?.data?.message || "Failed to update status");
     } finally {
       setUpdatingId(null);
+    }
+  };
+
+  const handlePaymentStatusChange = async (order, newPaymentStatus) => {
+    if (order.paymentStatus === newPaymentStatus) return;
+
+    setUpdatingPaymentId(order._id);
+    try {
+      await api.patch(
+        `/shops/${order.shopId}/orders/${order._id}/payment-status`,
+        { paymentStatus: newPaymentStatus }
+      );
+
+      setOrders((prev) =>
+        prev.map((o) =>
+          o._id === order._id
+            ? { ...o, paymentStatus: newPaymentStatus }
+            : o
+        )
+      );
+
+      toast.success(
+        newPaymentStatus === "paid"
+          ? "Marked as cash received"
+          : "Marked as payment pending"
+      );
+    } catch (error) {
+      toast.error(
+        error.response?.data?.message || "Failed to update payment status"
+      );
+    } finally {
+      setUpdatingPaymentId(null);
     }
   };
 
@@ -200,19 +233,41 @@ function MerchantOrders() {
                 </div>
 
                 {order.paymentStatus && (
-                  <p className="text-sm text-gray-500 mb-3">
-                    Payment:{" "}
-                    <span
-                      className={`font-medium capitalize ${
-                        order.paymentStatus === "paid"
-                          ? "text-green-600"
-                          : "text-yellow-600"
-                      }`}
-                    >
-                      {order.paymentStatus}
-                    </span>
-                    {order.paymentMethod === "online" ? " · Online" : " · COD"}
-                  </p>
+                  <div className="mb-3 flex flex-wrap items-center gap-3">
+                    <p className="text-sm text-gray-500">
+                      Payment:{" "}
+                      <span
+                        className={`font-medium capitalize ${
+                          order.paymentStatus === "paid"
+                            ? "text-green-600"
+                            : "text-yellow-600"
+                        }`}
+                      >
+                        {order.paymentStatus}
+                      </span>
+                      {order.paymentMethod === "online" ? " · Online" : " · COD"}
+                    </p>
+
+                    {order.paymentMethod === "cod" && (
+                      <Select
+                        label="Cash received?"
+                        value={order.paymentStatus}
+                        disabled={updatingPaymentId === order._id}
+                        onChange={(e) =>
+                          handlePaymentStatusChange(order, e.target.value)
+                        }
+                        className="min-w-[160px]"
+                        selectClassName={
+                          order.paymentStatus === "paid"
+                            ? "border-green-300 bg-green-50 text-green-800 focus:border-green-400 focus:ring-2 focus:ring-green-100"
+                            : "border-yellow-300 bg-yellow-50 text-yellow-800 focus:border-yellow-400 focus:ring-2 focus:ring-yellow-100"
+                        }
+                      >
+                        <option value="pending">Pending</option>
+                        <option value="paid">Paid (cash)</option>
+                      </Select>
+                    )}
+                  </div>
                 )}
 
                 <div className="border-t border-gray-100 pt-4 space-y-2">

@@ -13,7 +13,11 @@ async function getShopAnalytics(req, res) {
             return res.status(403).json({ message: 'Unauthorized to view analytics for this shop' });
         }
 
-        const orders = await Order.find({ shop: shopId });
+        // Only count paid orders — unpaid COD stays out of analytics until cash is received
+        const orders = await Order.find({
+            shop: shopId,
+            paymentStatus: 'paid'
+        });
         const totalRevenue = orders.reduce((sum, order) => sum + order.totalAmount, 0);
         const totalOrders = orders.length;
         const pendingOrders = orders.filter(order => order.status === 'pending').length;

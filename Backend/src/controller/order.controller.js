@@ -1,22 +1,23 @@
 const Order = require('../models/Order');
 const Product = require('../models/Product');
 const Shop = require('../models/Shop');
-const User = require('../models/User');
 const generateWhatsappLink = require('../utils/generateWhatsappLink');
 const sendNotification = require('../utils/sendNotification');
 
 async function createOrder(req, res) {
   try {
+    if (req.user.role !== 'customer') {
+      return res.status(403).json({ message: 'Only customers can place orders' });
+    }
+
     const { shopId } = req.params;
     const { items } = req.body;
 
-    // check if shop exists
     const shop = await Shop.findById(shopId);
     if (!shop) {
       return res.status(404).json({ message: 'Shop not found' });
     }
 
-    // validate items
     if (!items || items.length === 0) {
       return res.status(400).json({ message: 'Order items are required' });
     }
@@ -24,7 +25,6 @@ async function createOrder(req, res) {
     let totalAmount = 0;
     const orderItems = [];
     const productsMap = {};
-
     const productsToUpdate = [];
 
     for (let item of items) {
@@ -55,11 +55,9 @@ async function createOrder(req, res) {
       });
 
       productsMap[product._id.toString()] = product.name;
-
       productsToUpdate.push({ product, quantity: item.quantity });
     }
 
-    // deduct stock after validation passes
     for (let item of productsToUpdate) {
       item.product.stock -= item.quantity;
       await item.product.save();
@@ -70,6 +68,8 @@ async function createOrder(req, res) {
       shop: shopId,
       items: orderItems,
       totalAmount,
+      paymentMethod: 'cod',
+      paymentStatus: 'pending',
       statusHistory: [{ status: 'pending', at: new Date() }]
     });
 
@@ -78,110 +78,183 @@ async function createOrder(req, res) {
     await sendNotification({
       recipientId: shop.owner,
       type: 'new_order',
-      message: `${req.user.name} placed a new order of ₹${totalAmount}`,
+      message: `${req.user.name} placed a COD order of ₹${totalAmount}`,
       orderId: order._id,
       shopId: shop._id
     });
 
     res.status(201).json({
       success: true,
-      message: 'Order created successfully',
+      message: 'COD order placed successfully',
       order,
       whatsappLink
     });
-
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
-};
+}
 
 async function getMyOrders(req, res) {
-    try {
-        const orders = await Order.find({ customer: req.user._id }).populate('shop','name address whatsappNumber').populate('items.product','name price image').sort({ createdAt: -1 });
-        res.status(200).json({
-            message: 'Customer Orders retrieved successfully',
-            orders,
-            count: orders.length
-        });
-    } catch (error) {
-        res.status(500).json({ message: error.message });
-    }
+  try {
+    const orders = await Order.find({ customer: req.user._id })
+      .populate('shop', 'name address whatsappNumber')
+      .populate('items.product', 'name price image')
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      message: 'Customer Orders retrieved successfully',
+      orders,
+      count: orders.length
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
 }
 
 async function getShopOrders(req, res) {
-    try {
-        const shopId = req.params.shopId;
-        if (!shopId) {
-            return res.status(400).json({ message: 'Shop ID is required' });
-        }
-
-        const shop = await Shop.findById(shopId);
-        if (!shop) {
-            return res.status(404).json({ message: 'Shop not found' });
-        }
-
-        if (shop.owner.toString() !== req.user._id.toString()) {
-            return res.status(403).json({ message: 'Unauthorized to view orders for this shop' });
-        }
-
-        const orders = await Order.find({ shop: shopId }).populate('customer', 'name email').populate('items.product', 'name price image').sort({ createdAt: -1 });
-
-        res.status(200).json({
-            message: 'Shop Orders retrieved successfully',
-            orders,
-            count: orders.length
-        });
-    } catch (error) {
-        res.status(500).json({ message: error.message });
+  try {
+    const shopId = req.params.shopId;
+    if (!shopId) {
+      return res.status(400).json({ message: 'Shop ID is required' });
     }
+
+    const shop = await Shop.findById(shopId);
+    if (!shop) {
+      return res.status(404).json({ message: 'Shop not found' });
+    }
+
+    if (shop.owner.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Unauthorized to view orders for this shop' });
+    }
+
+    const orders = await Order.find({ shop: shopId })
+      .populate('customer', 'name email')
+      .populate('items.product', 'name price image')
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      message: 'Shop Orders retrieved successfully',
+      orders,
+      count: orders.length
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
 }
 
 async function updateOrderStatus(req, res) {
-    try {
-        const {shopId, orderId } = req.params;
-        const { status } = req.body;
+  try {
+    const { shopId, orderId } = req.params;
+    const { status } = req.body;
 
-        const shop = await Shop.findById(shopId);
-        if (!shop) {
-            return res.status(404).json({ message: 'Shop not found' });
-        }
-
-        if(shop.owner.toString() !== req.user._id.toString()){
-            return res.status(403).json({ message: 'Unauthorized to update order status for this shop' });
-        }
-
-        const order = await Order.findOne({ _id: orderId, shop: shopId });
-
-        if (!order) {
-            return res.status(404).json({ message: 'Order not found' });
-        }
-
-        const validStatuses = ['pending', 'accepted', 'delivered', 'cancelled'];
-
-        if (!validStatuses.includes(status)) {
-            return res.status(400).json({ message: 'Invalid status value' });
-        }
-
-        order.status = status;
-        order.statusHistory.push({ status, at: new Date() });
-        await order.save();
-
-        await sendNotification({
-            recipientId: order.customer,
-            type: 'order_status',
-            message: `Your order at ${shop.name} is now ${status}`,
-            orderId: order._id,
-            shopId: shop._id
-        });
-
-        res.status(200).json({
-            message: 'Order status updated successfully',
-            order
-        });
-    } catch (error) {
-        res.status(500).json({ message: error.message });
+    const shop = await Shop.findById(shopId);
+    if (!shop) {
+      return res.status(404).json({ message: 'Shop not found' });
     }
+
+    if (shop.owner.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Unauthorized to update order status for this shop' });
+    }
+
+    const order = await Order.findOne({ _id: orderId, shop: shopId });
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
+    const validStatuses = ['pending', 'accepted', 'delivered', 'cancelled'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ message: 'Invalid status value' });
+    }
+
+    order.status = status;
+    order.statusHistory.push({ status, at: new Date() });
+    await order.save();
+
+    await sendNotification({
+      recipientId: order.customer,
+      type: 'order_status',
+      message: `Your order at ${shop.name} is now ${status}`,
+      orderId: order._id,
+      shopId: shop._id
+    });
+
+    res.status(200).json({
+      message: 'Order status updated successfully',
+      order
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
 }
 
-module.exports = { createOrder, getMyOrders, getShopOrders, updateOrderStatus };
+async function updatePaymentStatus(req, res) {
+  try {
+    const { shopId, orderId } = req.params;
+    const { paymentStatus } = req.body;
 
+    const shop = await Shop.findById(shopId);
+    if (!shop) {
+      return res.status(404).json({ message: 'Shop not found' });
+    }
+
+    if (shop.owner.toString() !== req.user._id.toString()) {
+      return res.status(403).json({
+        message: 'Unauthorized to update payment status for this shop'
+      });
+    }
+
+    const order = await Order.findOne({ _id: orderId, shop: shopId });
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
+    if (order.paymentMethod !== 'cod') {
+      return res.status(400).json({
+        message: 'Payment status can only be updated for COD orders'
+      });
+    }
+
+    const validStatuses = ['pending', 'paid'];
+    if (!validStatuses.includes(paymentStatus)) {
+      return res.status(400).json({
+        message: 'paymentStatus must be pending or paid'
+      });
+    }
+
+    if (order.paymentStatus === paymentStatus) {
+      return res.status(200).json({
+        message: 'Payment status unchanged',
+        order
+      });
+    }
+
+    order.paymentStatus = paymentStatus;
+    await order.save();
+
+    await sendNotification({
+      recipientId: order.customer,
+      type: 'order_status',
+      message:
+        paymentStatus === 'paid'
+          ? `Cash payment received for your order at ${shop.name}`
+          : `Payment for your order at ${shop.name} is marked as pending`,
+      orderId: order._id,
+      shopId: shop._id
+    });
+
+    res.status(200).json({
+      message: 'Payment status updated successfully',
+      order
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+}
+
+module.exports = {
+  createOrder,
+  getMyOrders,
+  getShopOrders,
+  updateOrderStatus,
+  updatePaymentStatus
+};
