@@ -1,24 +1,27 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import api from "../../api/axios";
 import ShopCard from "../../components/ShopCard";
+import CatalogFilters from "../../components/CatalogFilters";
+
+const SHOP_SORT_OPTIONS = [
+  { value: "newest", label: "Newest" },
+  { value: "name_asc", label: "Name: A to Z" },
+  { value: "name_desc", label: "Name: Z to A" },
+];
 
 function Home() {
   const [shops, setShops] = useState([]);
-  const [filteredShops, setFilteredShops] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [category, setCategory] = useState("");
+  const [sort, setSort] = useState("newest");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-
-  // 🔥 Fetch shops
   useEffect(() => {
     const fetchShops = async () => {
       try {
         const res = await api.get("/shops");
-        const shopData = res.data.shops || [];
-
-        setShops(shopData);
-        setFilteredShops(shopData);
+        setShops(res.data.shops || []);
       } catch (err) {
         console.error("Error fetching shops:", err);
         setError("Failed to load shops");
@@ -30,42 +33,63 @@ function Home() {
     fetchShops();
   }, []);
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      const filtered = shops.filter((shop) =>
-        (shop.name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (shop.category || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (shop.address || "").toLowerCase().includes(searchTerm.toLowerCase())||
-        (shop.description || "").toLowerCase().includes(searchTerm.toLowerCase())
+  const categories = useMemo(() => {
+    return [
+      ...new Set(shops.map((shop) => shop.category).filter(Boolean)),
+    ].sort((a, b) => a.localeCompare(b));
+  }, [shops]);
+
+  const filteredShops = useMemo(() => {
+    const q = searchTerm.trim().toLowerCase();
+
+    let list = shops.filter((shop) => {
+      if (category && shop.category !== category) return false;
+
+      if (!q) return true;
+
+      return (
+        (shop.name || "").toLowerCase().includes(q) ||
+        (shop.category || "").toLowerCase().includes(q) ||
+        (shop.address || "").toLowerCase().includes(q) ||
+        (shop.description || "").toLowerCase().includes(q)
       );
+    });
 
-      setFilteredShops(filtered);
-    }, 300);
+    list = [...list];
+    if (sort === "name_asc") {
+      list.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+    } else if (sort === "name_desc") {
+      list.sort((a, b) => (b.name || "").localeCompare(a.name || ""));
+    } else {
+      list.sort(
+        (a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0)
+      );
+    }
 
-    return () => clearTimeout(timer);
-  }, [searchTerm, shops]);
+    return list;
+  }, [shops, searchTerm, category, sort]);
 
-  // 🔥 Loading UI
+  const hasActiveFilters =
+    searchTerm.trim() || category || sort !== "newest";
+
+  const clearFilters = () => {
+    setSearchTerm("");
+    setCategory("");
+    setSort("newest");
+  };
+
   if (loading) {
     return (
-      <div className="p-6 text-lg text-gray-600">
-        Loading shops...
-      </div>
+      <div className="p-6 text-lg text-gray-600">Loading shops...</div>
     );
   }
 
   if (error) {
-    return (
-      <div className="p-6 text-red-500">
-        {error}
-      </div>
-    );
+    return <div className="p-6 text-red-500">{error}</div>;
   }
 
   return (
     <div className="min-h-screen bg-gray-50">
-
-      {/* Hero Section */}
       <section className="bg-gradient-to-r from-green-600 to-emerald-500 text-white py-16 px-6">
         <div className="max-w-6xl mx-auto text-center">
           <h1 className="text-4xl md:text-5xl font-bold mb-4">
@@ -73,58 +97,62 @@ function Home() {
           </h1>
 
           <p className="text-lg md:text-xl text-green-100 max-w-2xl mx-auto">
-            Support nearby businesses and order products easily from trusted local merchants.
+            Support nearby businesses and order products easily from trusted
+            local merchants.
           </p>
-
-          {/* Search */}
-          <div className="mt-8 max-w-2xl mx-auto">
-            <input
-              type="text"
-              placeholder="Search by shop name, category, or address..."
-              className="w-full px-5 py-4 rounded-xl text-gray-800 shadow-lg outline-none"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
         </div>
       </section>
 
-      {/* Shops Section */}
       <section className="max-w-6xl mx-auto px-6 py-12">
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex flex-wrap items-end justify-between gap-4 mb-6">
           <div>
             <h2 className="text-3xl font-bold text-gray-800">
               Available Shops
             </h2>
-            <p className="text-gray-600 mt-1">
-              Browse and explore local businesses in your area
+            <p className="text-sm text-gray-500 mt-1">
+              {filteredShops.length} shop
+              {filteredShops.length !== 1 ? "s" : ""} found
             </p>
           </div>
 
-          <div className="text-sm text-gray-500">
-            {filteredShops.length} shop{filteredShops.length !== 1 ? "s" : ""} found
-          </div>
+          {hasActiveFilters && (
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="text-sm text-green-600 hover:text-green-700 font-medium"
+            >
+              Clear filters
+            </button>
+          )}
         </div>
 
-        {/* No Shops Found */}
+        <CatalogFilters
+          searchTerm={searchTerm}
+          onSearchChange={(e) => setSearchTerm(e.target.value)}
+          searchPlaceholder="Search shops..."
+          category={category}
+          onCategoryChange={(e) => setCategory(e.target.value)}
+          categories={categories}
+          sort={sort}
+          onSortChange={(e) => setSort(e.target.value)}
+          sortOptions={SHOP_SORT_OPTIONS}
+        />
+
         {filteredShops.length === 0 ? (
           <div className="bg-white rounded-2xl shadow p-10 text-center">
             <h3 className="text-2xl font-semibold text-gray-700 mb-2">
               No shops found
             </h3>
             <p className="text-gray-500">
-              Try searching with a different keyword.
+              {hasActiveFilters
+                ? "Try changing your search or filters."
+                : "No shops available yet."}
             </p>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
             {filteredShops.map((shop) => (
-              <div
-                key={shop._id}
-                className="cursor-pointer"
-              >
-                <ShopCard shop={shop} />
-              </div>
+              <ShopCard key={shop._id} shop={shop} />
             ))}
           </div>
         )}
