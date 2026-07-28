@@ -5,10 +5,21 @@ import { useCart } from "../../hooks/useCart";
 import { useNavigate } from "react-router-dom";
 import { jwtDecode } from "jwt-decode";
 import toast from "react-hot-toast";
-import Select from "../../components/Select";
 import FavouriteButton from "../../components/FavouriteButton";
+import CatalogFilters from "../../components/CatalogFilters";
 
 const LIMIT = 12;
+
+const PRODUCT_SORT_OPTIONS = [
+  { value: "newest", label: "Newest" },
+  { value: "price_asc", label: "Price: Low to High" },
+  { value: "price_desc", label: "Price: High to Low" },
+];
+
+const PRODUCT_STOCK_OPTIONS = [
+  { value: "", label: "All Products" },
+  { value: "true", label: "In Stock Only" },
+];
 
 function ShopDetails() {
   const { shopId } = useParams();
@@ -363,64 +374,30 @@ function ShopDetails() {
           )}
         </div>
 
-        <div className="bg-white rounded-2xl shadow p-4 mb-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="sm:col-span-2 lg:col-span-1">
-            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
-              Search
-            </label>
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search products..."
-              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100"
-            />
-          </div>
-
-          <Select
-            label="Category"
-            value={category}
-            onChange={(e) => {
-              setCategory(e.target.value);
-              setPage(1);
-            }}
-            selectClassName="border-gray-200 bg-white text-gray-800 focus:border-green-500 focus:ring-2 focus:ring-green-100"
-          >
-            <option value="">All Categories</option>
-            {categories.map((cat) => (
-              <option key={cat} value={cat}>
-                {cat}
-              </option>
-            ))}
-          </Select>
-
-          <Select
-            label="Sort by"
-            value={sort}
-            onChange={(e) => {
-              setSort(e.target.value);
-              setPage(1);
-            }}
-            selectClassName="border-gray-200 bg-white text-gray-800 focus:border-green-500 focus:ring-2 focus:ring-green-100"
-          >
-            <option value="newest">Newest</option>
-            <option value="price_asc">Price: Low to High</option>
-            <option value="price_desc">Price: High to Low</option>
-          </Select>
-
-          <Select
-            label="Availability"
-            value={inStock ? "true" : ""}
-            onChange={(e) => {
-              setInStock(e.target.value === "true");
-              setPage(1);
-            }}
-            selectClassName="border-gray-200 bg-white text-gray-800 focus:border-green-500 focus:ring-2 focus:ring-green-100"
-          >
-            <option value="">All Products</option>
-            <option value="true">In Stock Only</option>
-          </Select>
-        </div>
+        <CatalogFilters
+          searchTerm={searchTerm}
+          onSearchChange={(e) => setSearchTerm(e.target.value)}
+          searchPlaceholder="Search products..."
+          category={category}
+          onCategoryChange={(e) => {
+            setCategory(e.target.value);
+            setPage(1);
+          }}
+          categories={categories}
+          sort={sort}
+          onSortChange={(e) => {
+            setSort(e.target.value);
+            setPage(1);
+          }}
+          sortOptions={PRODUCT_SORT_OPTIONS}
+          extraLabel="Availability"
+          extraValue={inStock ? "true" : ""}
+          onExtraChange={(e) => {
+            setInStock(e.target.value === "true");
+            setPage(1);
+          }}
+          extraOptions={PRODUCT_STOCK_OPTIONS}
+        />
 
         {productsLoading ? (
           <div className="text-center py-16 text-gray-500">Loading products...</div>
