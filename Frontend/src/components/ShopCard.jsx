@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router-dom";
+import FavouriteButton from "./FavouriteButton";
 
 const ShopCard = ({ shop }) => {
   const navigate = useNavigate();
@@ -6,10 +7,10 @@ const ShopCard = ({ shop }) => {
   return (
     <div
       onClick={() => navigate(`/shops/${shop._id}`)}
-      className="bg-white rounded-2xl shadow-md hover:shadow-xl transition overflow-hidden cursor-pointer"
+      className="bg-white rounded-2xl shadow-md hover:shadow-xl transition overflow-hidden cursor-pointer relative"
     >
       {/* 🔥 Banner */}
-      <div className="h-32 w-full bg-gray-200">
+      <div className="h-32 w-full bg-gray-200 relative">
         <img
           src={
             shop.banner ||
@@ -17,6 +18,11 @@ const ShopCard = ({ shop }) => {
           }
           alt={shop.name}
           className="w-full h-full object-cover"
+        />
+        <FavouriteButton
+          type="shop"
+          itemId={shop._id}
+          className="absolute top-3 right-3 z-10"
         />
       </div>
 

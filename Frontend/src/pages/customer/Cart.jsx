@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import api from "../../api/axios";
 import toast from "react-hot-toast";
+import ConfirmModal from "../../components/ConfirmModal";
 
 function Cart() {
   const { cartItems, removeFromCart, updateCart, calculateTotalAmount, clearCart } = useCart();
@@ -10,6 +11,7 @@ function Cart() {
   const [message, setMessage] = useState(null);
   const [loading, setLoading] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("online");
+  const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
   const totalAmount = calculateTotalAmount();
   const shopId = cartItems[0]?.shopId;
   const shopName = cartItems[0]?.shopName;
@@ -110,20 +112,7 @@ function Cart() {
               </h2>
               {cartItems.length > 0 && (
                 <button
-                  onClick={() => {
-                    if (
-                      window.confirm(
-                        "Are you sure you want to clear the entire cart?"
-                      )
-                    ) {
-                      clearCart();
-                      setMessage({
-                        type: "success",
-                        text: "Cart cleared successfully!",
-                      });
-                      setTimeout(() => setMessage(null), 3000);
-                    }
-                  }}
+                  onClick={() => setClearConfirmOpen(true)}
                   className="text-red-600 hover:text-red-700 font-medium text-sm transition"
                 >
                   Clear Cart
@@ -340,6 +329,22 @@ function Cart() {
           </div>
         </div>
       </div>
+
+      <ConfirmModal
+        open={clearConfirmOpen}
+        title="Clear cart?"
+        message="This will remove all items from your cart. You can’t undo this action."
+        confirmLabel="Clear cart"
+        cancelLabel="Keep items"
+        variant="danger"
+        onCancel={() => setClearConfirmOpen(false)}
+        onConfirm={() => {
+          clearCart();
+          setClearConfirmOpen(false);
+          setMessage({ type: "success", text: "Cart cleared successfully!" });
+          setTimeout(() => setMessage(null), 3000);
+        }}
+      />
     </div>
   );
 }
