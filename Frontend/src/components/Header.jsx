@@ -63,19 +63,38 @@ function Header() {
         <div className="flex items-center gap-4 relative">
           {token && <NotificationBell />}
 
-          {/* 🔥 Show Cart ONLY for customers */}
+          {/* Customer: Favourites + Cart */}
           {!isMerchant && (
-            <Link
-              to="/cart"
-              className="relative flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-medium"
-            >
-              Cart
-              {cartCount > 0 && (
-                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs w-6 h-6 rounded-full flex items-center justify-center">
-                  {cartCount}
-                </span>
+            <>
+              {token && (
+                <Link
+                  to="/favourites"
+                  title="Favourites"
+                  aria-label="Favourites"
+                  className="w-10 h-10 rounded-full bg-gray-100 hover:bg-rose-50 text-rose-500 hover:text-rose-600 flex items-center justify-center transition"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                    className="w-5 h-5"
+                  >
+                    <path d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0112 5.052 5.5 5.5 0 0116.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.219l-.022.012-.007.004-.003.001a.752.752 0 01-.704 0l-.003-.001z" />
+                  </svg>
+                </Link>
               )}
-            </Link>
+              <Link
+                to="/cart"
+                className="relative flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-medium"
+              >
+                Cart
+                {cartCount > 0 && (
+                  <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs w-6 h-6 rounded-full flex items-center justify-center">
+                    {cartCount}
+                  </span>
+                )}
+              </Link>
+            </>
           )}
 
           {/* 🔥 Merchant Dashboard */}

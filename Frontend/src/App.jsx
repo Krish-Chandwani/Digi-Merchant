@@ -5,6 +5,7 @@ import ShopDetails from "./pages/customer/ShopDetails";
 import Cart from "./pages/customer/Cart";
 import Payment from "./pages/customer/Payment";
 import MyOrders from "./pages/customer/MyOrders";
+import Favourites from "./pages/customer/Favourites";
 import Header from "./components/Header";
 import PrivateRoute from "./components/PrivateRoute";
 
@@ -54,6 +55,14 @@ function App() {
           element={
             <PrivateRoute role="customer">
               <MyOrders />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/favourites"
+          element={
+            <PrivateRoute role="customer">
+              <Favourites />
             </PrivateRoute>
           }
         />

@@ -3,12 +3,15 @@ import { useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import api from "../../api/axios";
 import toast from "react-hot-toast";
+import ConfirmModal from "../../components/ConfirmModal";
 
 function Cart() {
   const { cartItems, removeFromCart, updateCart, calculateTotalAmount, clearCart } = useCart();
   const navigate = useNavigate();
   const [message, setMessage] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState("online");
+  const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
   const [couponInput, setCouponInput] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState(null);
   const [couponLoading, setCouponLoading] = useState(false);
@@ -18,6 +21,7 @@ function Cart() {
   const shopId = cartItems[0]?.shopId;
   const shopName = cartItems[0]?.shopName;
   const discountAmount = appliedCoupon?.discountAmount || 0;
+  const amountToPay = totalAmount - discountAmount;
 
   useEffect(() => {
     const fetchCoupons = async () => {
@@ -98,14 +102,25 @@ function Cart() {
     setLoading(true);
     setMessage(null);
 
+    const items = cartItems.map((item) => ({
+      productId: item.id,
+      quantity: item.quantity,
+    }));
+    const couponCode = appliedCoupon?.code || "";
+
     try {
+      if (paymentMethod === "cod") {
+        await api.post(`/shops/${shopId}/orders`, { items, couponCode });
+        clearCart();
+        toast.success("COD order placed! Pay cash on delivery.");
+        navigate("/my-orders");
+        return;
+      }
+
       const res = await api.post("/payments/create-session", {
         shopId,
-        items: cartItems.map((item) => ({
-          productId: item.id,
-          quantity: item.quantity,
-        })),
-        couponCode: appliedCoupon?.code || "",
+        items,
+        couponCode,
       });
 
       navigate(`/payment/${res.data.payment.paymentId}`);
@@ -169,20 +184,7 @@ function Cart() {
               </h2>
               {cartItems.length > 0 && (
                 <button
-                  onClick={() => {
-                    if (
-                      window.confirm(
-                        "Are you sure you want to clear the entire cart?"
-                      )
-                    ) {
-                      clearCart();
-                      setMessage({
-                        type: "success",
-                        text: "Cart cleared successfully!",
-                      });
-                      setTimeout(() => setMessage(null), 3000);
-                    }
-                  }}
+                  onClick={() => setClearConfirmOpen(true)}
                   className="text-red-600 hover:text-red-700 font-medium text-sm transition"
                 >
                   Clear Cart
@@ -372,8 +374,65 @@ function Cart() {
                     Amount to pay
                   </span>
                   <span className="text-2xl font-bold text-green-600">
-                    ₹{(totalAmount - discountAmount).toFixed(2)}
+                    ₹{amountToPay.toFixed(2)}
                   </span>
+                </div>
+              </div>
+
+              <div className="mb-6">
+                <p className="text-sm font-semibold text-gray-800 mb-3">
+                  Payment method
+                </p>
+                <div className="space-y-2">
+                  <label
+                    className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition ${
+                      paymentMethod === "online"
+                        ? "border-green-500 bg-green-50"
+                        : "border-gray-200 hover:border-gray-300"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="paymentMethod"
+                      value="online"
+                      checked={paymentMethod === "online"}
+                      onChange={() => setPaymentMethod("online")}
+                      className="mt-1"
+                    />
+                    <span>
+                      <span className="block font-medium text-gray-800">
+                        Pay Online
+                      </span>
+                      <span className="text-xs text-gray-500">
+                        Razorpay · UPI / cards / netbanking
+                      </span>
+                    </span>
+                  </label>
+
+                  <label
+                    className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition ${
+                      paymentMethod === "cod"
+                        ? "border-green-500 bg-green-50"
+                        : "border-gray-200 hover:border-gray-300"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="paymentMethod"
+                      value="cod"
+                      checked={paymentMethod === "cod"}
+                      onChange={() => setPaymentMethod("cod")}
+                      className="mt-1"
+                    />
+                    <span>
+                      <span className="block font-medium text-gray-800">
+                        Cash on Delivery
+                      </span>
+                      <span className="text-xs text-gray-500">
+                        Pay cash when your order arrives
+                      </span>
+                    </span>
+                  </label>
                 </div>
               </div>
 
@@ -386,7 +445,13 @@ function Cart() {
                     : "bg-green-600 hover:bg-green-700"
                 }`}
               >
-                {loading ? "Redirecting..." : "Proceed to Payment"}
+                {loading
+                  ? paymentMethod === "cod"
+                    ? "Placing order..."
+                    : "Redirecting..."
+                  : paymentMethod === "cod"
+                    ? "Place COD Order"
+                    : "Proceed to Payment"}
               </button>
 
               <button
@@ -399,6 +464,22 @@ function Cart() {
           </div>
         </div>
       </div>
+
+      <ConfirmModal
+        open={clearConfirmOpen}
+        title="Clear cart?"
+        message="This will remove all items from your cart. You can’t undo this action."
+        confirmLabel="Clear cart"
+        cancelLabel="Keep items"
+        variant="danger"
+        onCancel={() => setClearConfirmOpen(false)}
+        onConfirm={() => {
+          clearCart();
+          setClearConfirmOpen(false);
+          setMessage({ type: "success", text: "Cart cleared successfully!" });
+          setTimeout(() => setMessage(null), 3000);
+        }}
+      />
     </div>
   );
 }
