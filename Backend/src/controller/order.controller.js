@@ -3,6 +3,7 @@ const Product = require('../models/Product');
 const Shop = require('../models/Shop');
 const generateWhatsappLink = require('../utils/generateWhatsappLink');
 const sendNotification = require('../utils/sendNotification');
+const { applyCouponForCheckout } = require('../utils/couponUtils');
 
 async function createOrder(req, res) {
   try {
@@ -11,7 +12,7 @@ async function createOrder(req, res) {
     }
 
     const { shopId } = req.params;
-    const { items } = req.body;
+    const { items, couponCode } = req.body;
 
     const shop = await Shop.findById(shopId);
     if (!shop) {
@@ -22,7 +23,7 @@ async function createOrder(req, res) {
       return res.status(400).json({ message: 'Order items are required' });
     }
 
-    let totalAmount = 0;
+    let subtotal = 0;
     const orderItems = [];
     const productsMap = {};
     const productsToUpdate = [];
@@ -46,7 +47,7 @@ async function createOrder(req, res) {
         });
       }
 
-      totalAmount += product.price * item.quantity;
+      subtotal += product.price * item.quantity;
 
       orderItems.push({
         product: product._id,
@@ -58,6 +59,19 @@ async function createOrder(req, res) {
       productsToUpdate.push({ product, quantity: item.quantity });
     }
 
+    const couponResult = await applyCouponForCheckout({
+      code: couponCode,
+      customerId: req.user._id,
+      shopId,
+      subtotal
+    });
+
+    if (couponResult.finalAmount < 1) {
+      return res.status(400).json({
+        message: 'Order total after discount must be at least ₹1'
+      });
+    }
+
     for (let item of productsToUpdate) {
       item.product.stock -= item.quantity;
       await item.product.save();
@@ -67,7 +81,10 @@ async function createOrder(req, res) {
       customer: req.user._id,
       shop: shopId,
       items: orderItems,
-      totalAmount,
+      subtotal,
+      discountAmount: couponResult.discountAmount,
+      couponCode: couponResult.couponCode,
+      totalAmount: couponResult.finalAmount,
       paymentMethod: 'cod',
       paymentStatus: 'pending',
       statusHistory: [{ status: 'pending', at: new Date() }]
@@ -78,7 +95,7 @@ async function createOrder(req, res) {
     await sendNotification({
       recipientId: shop.owner,
       type: 'new_order',
-      message: `${req.user.name} placed a COD order of ₹${totalAmount}`,
+      message: `${req.user.name} placed a COD order of ₹${couponResult.finalAmount}`,
       orderId: order._id,
       shopId: shop._id
     });
@@ -90,6 +107,9 @@ async function createOrder(req, res) {
       whatsappLink
     });
   } catch (error) {
+    if (error.status) {
+      return res.status(error.status).json({ message: error.message });
+    }
     res.status(500).json({ message: error.message });
   }
 }

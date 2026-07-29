@@ -148,9 +148,17 @@ function MyOrders() {
                 </div>
 
                 <div className="border-t border-gray-100 mt-4 pt-4 flex flex-wrap items-center justify-between gap-4">
-                  <p className="text-lg font-bold text-green-600">
-                    Total: ₹{order.totalAmount.toFixed(2)}
-                  </p>
+                  <div>
+                    {order.discountAmount > 0 && (
+                      <p className="text-sm text-green-700 mb-1">
+                        Coupon {order.couponCode}: −₹
+                        {order.discountAmount.toFixed(2)}
+                      </p>
+                    )}
+                    <p className="text-lg font-bold text-green-600">
+                      Total: ₹{order.totalAmount.toFixed(2)}
+                    </p>
+                  </div>
 
                   {order.shop?.whatsappNumber && (
                     <a

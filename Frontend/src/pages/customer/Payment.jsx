@@ -142,6 +142,17 @@ function Payment() {
           <p className="text-3xl font-bold text-green-600 mt-4">
             ₹{payment?.amount?.toFixed(2)}
           </p>
+          {payment?.discountAmount > 0 && (
+            <p className="text-sm text-green-700 mt-2">
+              Coupon {payment.couponCode}: −₹{payment.discountAmount.toFixed(2)}
+              {payment.subtotal > 0 && (
+                <span className="text-gray-400">
+                  {" "}
+                  (was ₹{payment.subtotal.toFixed(2)})
+                </span>
+              )}
+            </p>
+          )}
           <p className="text-xs text-gray-400 mt-1">ID: {payment?.paymentId}</p>
         </div>
 

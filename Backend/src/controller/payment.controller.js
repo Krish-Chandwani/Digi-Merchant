@@ -6,6 +6,7 @@ const Order = require('../models/Order');
 const generateWhatsappLink = require('../utils/generateWhatsappLink');
 const sendNotification = require('../utils/sendNotification');
 const { getRazorpay } = require('../config/razorpay');
+const { applyCouponForCheckout } = require('../utils/couponUtils');
 
 async function validateAndBuildOrderItems(shopId, items) {
   let totalAmount = 0;
@@ -51,7 +52,7 @@ async function validateAndBuildOrderItems(shopId, items) {
 
 async function createPaymentSession(req, res) {
   try {
-    const { shopId, items } = req.body;
+    const { shopId, items, couponCode } = req.body;
 
     if (!shopId) {
       return res.status(400).json({ message: 'Shop ID is required' });
@@ -66,23 +67,42 @@ async function createPaymentSession(req, res) {
       return res.status(404).json({ message: 'Shop not found' });
     }
 
-    const { totalAmount } = await validateAndBuildOrderItems(shopId, items);
+    const { totalAmount: subtotal } = await validateAndBuildOrderItems(shopId, items);
 
-    if (totalAmount <= 0) {
+    if (subtotal <= 0) {
       return res.status(400).json({ message: 'Invalid payment amount' });
+    }
+
+    const couponResult = await applyCouponForCheckout({
+      code: couponCode,
+      customerId: req.user._id,
+      shopId,
+      subtotal
+    });
+
+    const amount = couponResult.finalAmount;
+
+    // Razorpay requires at least ₹1
+    if (amount < 1) {
+      return res.status(400).json({
+        message: 'Order total after discount must be at least ₹1'
+      });
     }
 
     const payment = await Payment.create({
       customer: req.user._id,
       shop: shopId,
       items,
-      amount: totalAmount,
+      amount,
+      subtotal,
+      discountAmount: couponResult.discountAmount,
+      couponCode: couponResult.couponCode,
       status: 'pending'
     });
 
     const razorpay = getRazorpay();
     const razorpayOrder = await razorpay.orders.create({
-      amount: Math.round(totalAmount * 100),
+      amount: Math.round(amount * 100),
       currency: 'INR',
       receipt: payment.paymentId,
       notes: {
@@ -101,6 +121,9 @@ async function createPaymentSession(req, res) {
       payment: {
         paymentId: payment.paymentId,
         amount: payment.amount,
+        subtotal: payment.subtotal,
+        discountAmount: payment.discountAmount,
+        couponCode: payment.couponCode,
         shopName: shop.name,
         status: payment.status,
         razorpayOrderId: razorpayOrder.id,
@@ -167,7 +190,7 @@ async function verifyPayment(req, res) {
       return res.status(404).json({ message: 'Shop not found' });
     }
 
-    const { totalAmount, orderItems, productsMap, productsToUpdate } =
+    const { orderItems, productsMap, productsToUpdate } =
       await validateAndBuildOrderItems(
         payment.shop.toString(),
         payment.items.map((item) => ({
@@ -175,6 +198,14 @@ async function verifyPayment(req, res) {
           quantity: item.quantity
         }))
       );
+
+    // Use amounts locked on the payment session (what Razorpay charged).
+    // Do not re-apply coupons here — eligibility/price can change after pay
+    // and would desync the paid amount from the order total.
+    const finalAmount = payment.amount;
+    const subtotal = payment.subtotal || finalAmount;
+    const discountAmount = payment.discountAmount || 0;
+    const couponCode = payment.couponCode || '';
 
     for (let item of productsToUpdate) {
       item.product.stock -= item.quantity;
@@ -185,7 +216,10 @@ async function verifyPayment(req, res) {
       customer: req.user._id,
       shop: payment.shop,
       items: orderItems,
-      totalAmount,
+      subtotal,
+      discountAmount,
+      couponCode,
+      totalAmount: finalAmount,
       paymentMethod: 'online',
       paymentStatus: 'paid',
       paymentId: razorpay_payment_id,
@@ -202,7 +236,7 @@ async function verifyPayment(req, res) {
     await sendNotification({
       recipientId: shop.owner,
       type: 'new_order',
-      message: `${req.user.name} paid ₹${totalAmount} for a new order`,
+      message: `${req.user.name} paid ₹${finalAmount} for a new order`,
       orderId: order._id,
       shopId: shop._id
     });
@@ -215,6 +249,8 @@ async function verifyPayment(req, res) {
       payment: {
         paymentId: payment.paymentId,
         amount: payment.amount,
+        discountAmount: payment.discountAmount,
+        couponCode: payment.couponCode,
         status: payment.status
       }
     });
@@ -244,6 +280,9 @@ async function getPaymentSession(req, res) {
       payment: {
         paymentId: payment.paymentId,
         amount: payment.amount,
+        subtotal: payment.subtotal,
+        discountAmount: payment.discountAmount,
+        couponCode: payment.couponCode,
         status: payment.status,
         shopName: payment.shop?.name || 'Shop',
         razorpayOrderId: payment.razorpayOrderId,
