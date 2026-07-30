@@ -22,7 +22,7 @@ function Login() {
       window.dispatchEvent(new Event("auth-change"));
 
       const user = jwtDecode(res.data.token);
-      navigate(user.role === "merchant" ? "/merchant/dashboard" : "/");
+      navigate(user.role === "merchant" ? "/merchant/manage-shops" : "/");
     } catch (error) {
       toast.error(error.response?.data?.message || "Login failed");
     }

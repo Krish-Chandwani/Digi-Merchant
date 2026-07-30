@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../../api/axios";
 import toast from "react-hot-toast";
+import { jwtDecode } from "jwt-decode";
 
 function Register() {
   const [form, setForm] = useState({
@@ -30,14 +31,18 @@ function Register() {
         name: form.name,
         email: form.email,
         password: form.password,
-        role: form.isMerchant ? "merchant" : "customer" // 🔥 IMPORTANT
+        role: form.isMerchant ? "merchant" : "customer"
       };
 
-      await api.post("/auth/register", payload);
+      const res = await api.post("/auth/register", payload);
+
+      localStorage.setItem("token", res.data.token);
+      window.dispatchEvent(new Event("auth-change"));
 
       toast.success("Registration successful");
-      navigate("/login");
 
+      const user = jwtDecode(res.data.token);
+      navigate(user.role === "merchant" ? "/merchant/manage-shops" : "/");
     } catch (error) {
       toast.error(error.response?.data?.message || "Registration failed");
     }
