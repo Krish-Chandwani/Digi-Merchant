@@ -111,9 +111,28 @@ function Header() {
           <div className="relative" ref={dropDownRef}>
             <button
               onClick={() => setOpen(!open)}
-              className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center"
+              aria-expanded={open}
+              aria-haspopup="menu"
+              className="flex items-center gap-0.5 cursor-pointer rounded-full hover:bg-gray-100 p-0.5 transition"
             >
-              {isMerchant ? "🧑‍💼" : "👤"}
+              <span className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
+                {isMerchant ? "🧑‍💼" : "👤"}
+              </span>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+                className={`w-4 h-4 text-gray-500 transition-transform ${
+                  open ? "rotate-180" : ""
+                }`}
+                aria-hidden="true"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
+                  clipRule="evenodd"
+                />
+              </svg>
             </button>
 
             {/* 🔥 Dropdown */}
