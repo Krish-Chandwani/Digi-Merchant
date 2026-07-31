@@ -4,6 +4,7 @@ const Shop = require('../models/Shop');
 const generateWhatsappLink = require('../utils/generateWhatsappLink');
 const sendNotification = require('../utils/sendNotification');
 const { applyCouponForCheckout } = require('../utils/couponUtils');
+const { finalizeCancellation } = require('../utils/finalizeCancellation');
 
 async function createOrder(req, res) {
   try {
@@ -162,6 +163,50 @@ async function getShopOrders(req, res) {
   }
 }
 
+async function cancelOrder(req, res) {
+  try {
+    if (req.user.role !== 'customer') {
+      return res.status(403).json({ message: 'Only customers can cancel their orders' });
+    }
+
+    const order = await Order.findById(req.params.orderId);
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
+    if (order.customer.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Unauthorized' });
+    }
+
+    if (!['pending', 'accepted'].includes(order.status)) {
+      return res.status(400).json({
+        message: 'Only pending or accepted orders can be cancelled'
+      });
+    }
+
+    const { order: updated, alreadyCancelled } = await finalizeCancellation(
+      order,
+      'customer'
+    );
+
+    res.status(200).json({
+      success: true,
+      message: alreadyCancelled
+        ? 'Order already cancelled'
+        : updated.paymentStatus === 'refunded'
+          ? 'Order cancelled. Refund initiated to your original payment method.'
+          : 'Order cancelled successfully',
+      order: updated
+    });
+  } catch (error) {
+    if (error.status) {
+      return res.status(error.status).json({ message: error.message });
+    }
+    console.error('Cancel order error:', error);
+    res.status(500).json({ message: error.message || 'Failed to cancel order' });
+  }
+}
+
 async function updateOrderStatus(req, res) {
   try {
     const { shopId, orderId } = req.params;
@@ -186,6 +231,30 @@ async function updateOrderStatus(req, res) {
       return res.status(400).json({ message: 'Invalid status value' });
     }
 
+    if (status === 'cancelled') {
+      if (order.status === 'cancelled') {
+        return res.status(200).json({
+          message: 'Order already cancelled',
+          order
+        });
+      }
+
+      const { order: updated } = await finalizeCancellation(order, 'merchant');
+      return res.status(200).json({
+        message:
+          updated.paymentStatus === 'refunded'
+            ? 'Order cancelled and refund processed'
+            : 'Order cancelled successfully',
+        order: updated
+      });
+    }
+
+    if (order.status === 'cancelled') {
+      return res.status(400).json({
+        message: 'Cannot change status of a cancelled order'
+      });
+    }
+
     order.status = status;
     order.statusHistory.push({ status, at: new Date() });
     await order.save();
@@ -203,6 +272,9 @@ async function updateOrderStatus(req, res) {
       order
     });
   } catch (error) {
+    if (error.status) {
+      return res.status(error.status).json({ message: error.message });
+    }
     res.status(500).json({ message: error.message });
   }
 }
@@ -231,6 +303,12 @@ async function updatePaymentStatus(req, res) {
     if (order.paymentMethod !== 'cod') {
       return res.status(400).json({
         message: 'Payment status can only be updated for COD orders'
+      });
+    }
+
+    if (order.status === 'cancelled') {
+      return res.status(400).json({
+        message: 'Cannot update payment status for a cancelled order'
       });
     }
 
@@ -275,6 +353,7 @@ module.exports = {
   createOrder,
   getMyOrders,
   getShopOrders,
+  cancelOrder,
   updateOrderStatus,
   updatePaymentStatus
 };
