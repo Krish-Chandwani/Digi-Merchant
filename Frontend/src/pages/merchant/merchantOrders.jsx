@@ -82,18 +82,25 @@ function MerchantOrders() {
 
     setUpdatingId(order._id);
     try {
-      await api.patch(
+      const res = await api.patch(
         `/shops/${order.shopId}/orders/${order._id}/status`,
         { status: newStatus }
       );
 
       setOrders((prev) =>
         prev.map((o) =>
-          o._id === order._id ? { ...o, status: newStatus } : o
+          o._id === order._id
+            ? {
+                ...o,
+                ...res.data.order,
+                shopId: o.shopId,
+                shopName: o.shopName,
+              }
+            : o
         )
       );
 
-      toast.success("Order status updated");
+      toast.success(res.data.message || "Order status updated");
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to update status");
     } finally {
@@ -240,15 +247,26 @@ function MerchantOrders() {
                         className={`font-medium capitalize ${
                           order.paymentStatus === "paid"
                             ? "text-green-600"
-                            : "text-yellow-600"
+                            : order.paymentStatus === "refunded"
+                              ? "text-blue-600"
+                              : "text-yellow-600"
                         }`}
                       >
                         {order.paymentStatus}
                       </span>
                       {order.paymentMethod === "online" ? " · Online" : " · COD"}
+                      {order.cancelledBy === "customer" &&
+                        order.status === "cancelled" && (
+                          <span className="text-xs text-gray-400">
+                            {" "}
+                            · Cancelled by customer
+                          </span>
+                        )}
                     </p>
 
-                    {order.paymentMethod === "cod" && (
+                    {order.paymentMethod === "cod" &&
+                      order.status !== "cancelled" &&
+                      order.paymentStatus !== "refunded" && (
                       <Select
                         label="Cash received?"
                         value={order.paymentStatus}
@@ -294,7 +312,9 @@ function MerchantOrders() {
                   <Select
                     label="Update status"
                     value={order.status}
-                    disabled={updatingId === order._id}
+                    disabled={
+                      updatingId === order._id || order.status === "cancelled"
+                    }
                     onChange={(e) => handleStatusChange(order, e.target.value)}
                     className="min-w-[180px]"
                     selectClassName={getStatusSelectStyle(order.status)}

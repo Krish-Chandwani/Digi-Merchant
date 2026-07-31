@@ -1,13 +1,22 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../../api/axios";
+import toast from "react-hot-toast";
 import OrderTimeline from "../../components/OrderTimeline";
+import ConfirmModal from "../../components/ConfirmModal";
 
 function MyOrders() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [cancelTarget, setCancelTarget] = useState(null);
+  const [cancelling, setCancelling] = useState(false);
   const navigate = useNavigate();
+
+  const fetchOrders = async () => {
+    const res = await api.get("/orders/my");
+    setOrders(res.data.orders || []);
+  };
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -16,25 +25,20 @@ function MyOrders() {
       return;
     }
 
-    const fetchOrders = async () => {
-      try {
-        const res = await api.get("/orders/my");
-        setOrders(res.data.orders || []);
-      } catch (err) {
+    fetchOrders()
+      .catch((err) => {
         console.error("Error fetching orders:", err);
         setError(err.response?.data?.message || "Failed to load orders");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchOrders();
+      })
+      .finally(() => setLoading(false));
   }, [navigate]);
 
   const getStatusStyle = (status) => {
     switch (status) {
       case "pending":
         return "bg-yellow-100 text-yellow-700";
+      case "accepted":
+        return "bg-blue-100 text-blue-700";
       case "completed":
       case "delivered":
         return "bg-green-100 text-green-700";
@@ -42,6 +46,37 @@ function MyOrders() {
         return "bg-red-100 text-red-600";
       default:
         return "bg-gray-100 text-gray-700";
+    }
+  };
+
+  const paymentStatusClass = (paymentStatus) => {
+    if (paymentStatus === "paid") return "text-green-600";
+    if (paymentStatus === "refunded") return "text-blue-600";
+    if (paymentStatus === "failed") return "text-red-600";
+    return "text-yellow-600";
+  };
+
+  const canCancel = (order) =>
+    order.status === "pending" || order.status === "accepted";
+
+  const handleConfirmCancel = async () => {
+    if (!cancelTarget) return;
+
+    setCancelling(true);
+    try {
+      const res = await api.post(`/orders/${cancelTarget._id}/cancel`);
+      const updated = res.data.order;
+
+      setOrders((prev) =>
+        prev.map((o) => (o._id === updated._id ? { ...o, ...updated } : o))
+      );
+
+      toast.success(res.data.message || "Order cancelled");
+      setCancelTarget(null);
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to cancel order");
+    } finally {
+      setCancelling(false);
     }
   };
 
@@ -114,15 +149,18 @@ function MyOrders() {
                   <p className="text-sm text-gray-500 mb-4">
                     Payment:{" "}
                     <span
-                      className={`font-medium capitalize ${
-                        order.paymentStatus === "paid"
-                          ? "text-green-600"
-                          : "text-yellow-600"
-                      }`}
+                      className={`font-medium capitalize ${paymentStatusClass(order.paymentStatus)}`}
                     >
                       {order.paymentStatus}
                     </span>
                     {order.paymentMethod === "online" ? " · Online" : " · COD"}
+                    {order.paymentStatus === "refunded" &&
+                      order.paymentMethod === "online" && (
+                        <span className="block text-xs text-gray-400 mt-1">
+                          Refund returns to your original payment method in a
+                          few business days.
+                        </span>
+                      )}
                   </p>
                 )}
 
@@ -142,7 +180,9 @@ function MyOrders() {
                       <span>
                         {item.product?.name || "Product"} x{item.quantity}
                       </span>
-                      <span>₹{(item.priceAtPurchase * item.quantity).toFixed(2)}</span>
+                      <span>
+                        ₹{(item.priceAtPurchase * item.quantity).toFixed(2)}
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -160,22 +200,52 @@ function MyOrders() {
                     </p>
                   </div>
 
-                  {order.shop?.whatsappNumber && (
-                    <a
-                      href={`https://wa.me/91${order.shop.whatsappNumber}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-sm bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition"
-                    >
-                      Contact Shop
-                    </a>
-                  )}
+                  <div className="flex flex-wrap items-center gap-2">
+                    {canCancel(order) && (
+                      <button
+                        type="button"
+                        onClick={() => setCancelTarget(order)}
+                        className="text-sm border border-red-200 text-red-600 px-4 py-2 rounded-lg hover:bg-red-50 transition"
+                      >
+                        Cancel order
+                      </button>
+                    )}
+                    {order.shop?.whatsappNumber && (
+                      <a
+                        href={`https://wa.me/91${order.shop.whatsappNumber}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-sm bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition"
+                      >
+                        Contact Shop
+                      </a>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}
           </div>
         )}
       </div>
+
+      <ConfirmModal
+        open={!!cancelTarget}
+        title="Cancel this order?"
+        message={
+          cancelTarget?.paymentMethod === "online" &&
+          cancelTarget?.paymentStatus === "paid"
+            ? "Your payment will be refunded to the original payment method (usually a few business days)."
+            : "This will cancel the order and restore stock. You can’t undo this."
+        }
+        confirmLabel="Cancel order"
+        cancelLabel="Keep order"
+        variant="danger"
+        loading={cancelling}
+        onCancel={() => {
+          if (!cancelling) setCancelTarget(null);
+        }}
+        onConfirm={handleConfirmCancel}
+      />
     </div>
   );
 }
