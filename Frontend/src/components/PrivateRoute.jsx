@@ -12,7 +12,7 @@ const PrivateRoute = ({ children, role }) => {
     try {
       const user = jwtDecode(token);
       if (user.role !== role) {
-        return <Navigate to={user.role === "merchant" ? "/merchant/dashboard" : "/"} replace />;
+        return <Navigate to={user.role === "merchant" ? "/merchant/manage-shops" : "/"} replace />;
       }
     } catch {
       localStorage.removeItem("token");
